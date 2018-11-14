@@ -16,8 +16,6 @@ import breeze.linalg.{DenseMatrix, DenseVector => BreezeVector}
 class Neighbors(neighbors: Int){
   /** compute similarity distance between samples in df
     *
-    * @deprecated as slicing and indexing of the matrix requires ordering of ids
-    *             in df, starting from 1 to n-1, were n = number of samples
     *
     * @param df DataFrame containing client features and ids ['id', 'features'] like
     * @param cols string of the feature column, usually "features"
@@ -40,8 +38,8 @@ class Neighbors(neighbors: Int){
     ss.sparkContext.register(dissimilarityMatrix, "dissimMatrix1")
     //TODO try without accumlator: https://stackoverflow.com/questions/37012059/how-to-find-the-nearest-neighbors-of-1-billion-records-with-spark
     cartesian.foreach(row => row match {
-      case Row(i: Double, vector1: DenseVector, j: Double, vector2: DenseVector)
-        => dissimilarityMatrix.add(i.toInt - 1, j.toInt - 1, distance(vector1, vector2))
+      case Row(i: Long, vector1: DenseVector, j: Long, vector2: DenseVector)
+        => dissimilarityMatrix.add(i.toInt , j.toInt, distance(vector1, vector2))
     })
     dissimilarityMatrix.value
   }
