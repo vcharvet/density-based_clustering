@@ -18,18 +18,18 @@ class NeighborsAgregatorTest extends FlatSpec {
   import ss.implicits._
 
 	val df = ss.sparkContext.parallelize(Seq(
-		(4l, 5l, 4d),
-		(4l, 6l, 1d),
-		(5l, 4l, 4d),
-		(5l, 6l, 5d),
-		(6l, 4l, 1d),
-		(6l, 5l, 5d)))
+		(3l, 4l, 4d),
+		(3l, 5l, 1d),
+		(4l, 3l, 4d),
+		(4l, 5l, 5d),
+		(5l, 4l, 1d),
+		(5l, 4l, 5d)))
   	.toDF("i", "j", "distIJ")
 
 	// group of point 4
 	val dfGroup = ss.sparkContext.parallelize(Seq(
-		(5l, 4d),
-		(6l, 1d)))
+		(4l, 4d),
+		(5l, 1d)))
   	.toDF("j", "distIJ")
 
 	val grouped_df = df.groupBy("i")
@@ -48,7 +48,7 @@ class NeighborsAgregatorTest extends FlatSpec {
 		val udfAgg = new NearestNeighborAgg(2, "j", "distIJ")
 		val resCol = dfGroup.select(udfAgg($"j", $"distIJ"))
 
-		assertResult(Map((5l, 4d)))(resCol.head().get(0))
+		assertResult(Map((4l, 4d)))(resCol.head().get(0))
 		}
 
 	"Aggregator on 2 nearest neighbors" should "yield" in{
@@ -58,9 +58,9 @@ class NeighborsAgregatorTest extends FlatSpec {
   			.orderBy("i")
 
 		val expected = ss.sparkContext.parallelize(Seq(
-			(4l, Map[Long, Double]((5l, 4d))),
-			(5l, Map[Long, Double]((6l, 5d))),
-			(6l, Map[Long, Double]((5l, 5d))))).toDF("j", "2NNeighbor")
+			(3l, Map[Long, Double]((4l, 4d))),
+			(4l, Map[Long, Double]((5l, 5d))),
+			(5l, Map[Long, Double]((4l, 5d))))).toDF("j", "2NNeighbor")
 
 		assertResult(expected.collect()  )(computed.collect())
 		}

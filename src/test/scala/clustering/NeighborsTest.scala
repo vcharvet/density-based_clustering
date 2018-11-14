@@ -24,12 +24,12 @@ class NeighborsTest extends FlatSpec {
   import ss.implicits._
   def df: DataFrame =
     ss.sparkContext.parallelize(Seq(
-      (1D, -3D, 2D),
-      (2D,-3D, 3D),
-      (3D, -4D, 2D),
-      (4D, 3D, 2D),
-      (5D, 5D, 2D),
-      (6D, 3D, 3D)))
+      (0l, -3D, 2D),
+      (1l,-3D, 3D),
+      (2l, -4D, 2D),
+      (3l, 3D, 2D),
+      (4l, 5D, 2D),
+      (5l, 3D, 3D)))
     .toDF("id", "x", "y")
     .cache()
 
@@ -64,21 +64,21 @@ class NeighborsTest extends FlatSpec {
     val computedDF = neighbors.pointWiseDistance(df_features, "id", "features", Vectors.sqdist)
 
     val expectedDF = ss.sparkContext.parallelize(Seq(
-      (1D, 2D, 1D),
-      (1D, 3D, 1D),
-      (1D, 4D, 36D),
-      (1D, 5D, 64D),
-      (1D, 6D, 37D),
-      (2D, 3D, 2D),
-      (2D, 4D, 37D),
-      (2D, 5D, 65D),
-      (2D, 6D, 36D),
-      (3D, 4D, 49D),
-      (3D, 5D, 81D),
-      (3D, 6D, 50D),
-      (4D, 5D, 4D),
-      (4D, 6D, 1D),
-      (5D, 6D, 5D)))
+      (0l, 1l, 1D),
+      (0l, 2l, 1D),
+      (0l, 3l, 36D),
+      (0l, 4l, 64D),
+      (0l, 5l, 37D),
+      (1l, 2l, 2D),
+      (1l, 3l, 37D),
+      (1l, 4l, 65D),
+      (1l, 5l, 36D),
+      (2l, 3l, 49D),
+      (2l, 4l, 81D),
+      (2l, 5l, 50D),
+      (3l, 4l, 4D),
+      (3l, 5l, 1D),
+      (4l, 5l, 5D)))
       .toDF("id", "id_2", "distance")
 
     assertResult(expectedDF.collect())(computedDF.select("id", "id_2", "distance").collect())
@@ -99,16 +99,14 @@ class CoreDistanceTest extends FlatSpec {
 
   def df: DataFrame =
     ss.sparkContext.parallelize(Seq(
-      (1D, -3D, 2D),
-      (2D,-3D, 3D),
-      (3D, -4D, 2D),
-      (4D, 3D, 2D),
-      (5D, 5D, 2D),
-      (6D, 3D, 3D)))
+      (0l, -3D, 2D),
+      (1l,-3D, 3D),
+      (2, -4D, 2D),
+      (3, 3D, 2D),
+      (4, 5D, 2D),
+      (5, 3D, 3D)))
     .toDF("id", "x", "y")
     .cache()
-
-
 
 
   val assembler = new VectorAssembler()
@@ -172,33 +170,19 @@ class CoreDistanceTest extends FlatSpec {
     assertResult(actual6)(computed6)
   }
   def actualTot: DataFrame = ss.sparkContext.parallelize(Seq(
-    (1D, 1),
-    (2D, sqrt(2)),
-    (3D, sqrt(2)),
-    (4D, 2),
-    (5D, sqrt(5)),
-    (6D, sqrt(5))))
+    (0l, 1),
+    (1l, sqrt(2)),
+    (2, sqrt(2)),
+    (3, 2),
+    (4, sqrt(5)),
+    (5, sqrt(5))))
     .toDF("id", "core_distance")
 
   "Core distances mapping on whole df" should "yield" in {
-//    val computedTot: DataFrame = df_features.select("id", "features")
-//      .withColumn("computed_core_distance",
-//        CD.coreDistanceUDF(df_features, LSHModel, minPts)(ss)(df_features("features")))
-
-//    val computedTot: DataFrame = df_features.select("id", "features")
-//        .map {row: Row =>
-//          val feature = row.getAs[DenseVector]("features")
-//          val id = row.getAs[Double]("id")
-//          val coreDist = CD.computeCoreDistance(feature, df_features, LSHModel, minPts)(ss)
-//          Row(id, coreDist)
-//        }
     //@TODO complete test
         println("Test not yet implanted")
 
-//        .map(row => CD.computeCoreDistance(row.getAs("features"), df_features.select("features"),
-//          LSHModel, 2)(ss))
       assertResult(true)(false)
-//    assertResult(actualTot("core_distance"))(computedTot("computed_core_distance"))
   }
 }
 
