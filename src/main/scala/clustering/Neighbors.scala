@@ -1,17 +1,14 @@
 package clustering
 
-import org.apache.spark.ml.feature.BucketedRandomProjectionLSHModel
 import org.apache.spark.ml.linalg.{DenseVector, Vectors}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.functions.udf
 import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 import breeze.linalg.{DenseMatrix, DenseVector => BreezeVector}
-//import clustering.NearestNeighborAgg
 
 
 
 /* class to fetch nearest neigbors and computing disimilarity matrix
-//TODO change distance to a func, and types of accumulator
    */
 class Neighbors(neighbors: Int){
   /** compute similarity distance between samples in df
@@ -73,50 +70,31 @@ class Neighbors(neighbors: Int){
   def distanceUDF(distance: (DenseVector, DenseVector) => Double) = //TODO type annotation?
     udf((vector1: DenseVector, vector2: DenseVector) => distance(vector1, vector2))
 
-
-//  def kNearestNeighbor(df: DataFrame, idCol1: String, icCol2: String,
-//    distanceCol: String)(ss: SparkSession) : DataFrame = {
-//    ss.sparkContext.udf.register("neighborsAgg", NearestNeighborAgg)
-//
-//    val dfGroup = df.groupBy(idCol1).agg()
-//
-//  }
-
-}
-
-//@deprecated
-class CoreDistance {
-//  var minPts: Int = 2
-//  def setMinPts(minPts: Int): Unit = {this.minPts = minPts}
-  /** computes the core distance of point x relative to dataset X
+  /** fetches kth nearest neighbor for each point in df[idCol1]
+    * The aggregator returns DaatFrame[i, Map(kNN(i), CD(i)]
     *
-    * @param xi
-    * @param X
-    * @param LSHModel
+    * @param df
+    * @param idCol1
+    * @param idCol2
+    * @param distanceCol
+    * @param ss
     * @return
     */
-  def computeCoreDistance(xi: DenseVector, X: DataFrame,
-                          LSHModel: BucketedRandomProjectionLSHModel, minPts: Int=2)
-                         (ss: SparkSession): Double = {
-    import ss.implicits._
+  def kNearestNeighbor(df: DataFrame, idCol1: String, idCol2: String,
+    distanceCol: String)(ss: SparkSession) : DataFrame = {
 
-    val dfNN = LSHModel.approxNearestNeighbors(X, xi, minPts)
+    val nnAgg = new clustering.NearestNeighborAgg(
+      this.neighbors, idCol1, distanceCol)
 
-    val row: Row = dfNN.agg(max($"distCol")).first()
+    val dfGroup = df
+      .groupBy(idCol1)
+      .agg(nnAgg(col(idCol2), col(distanceCol)))
+      .alias("kNNDistance")
+      .orderBy(idCol1)  // ?
 
-    row.getAs[Double](0)
+    dfGroup
   }
 
-  /** udf function that takes vector as input, made to be used in mapping function over
-    * a DataFrame
-    *
-    * @param X
-    * @param LSHModel
-    * @return
-    */
-  def coreDistanceUDF(X: DataFrame, LSHModel: BucketedRandomProjectionLSHModel, minPts: Int)
-                     (ss: SparkSession) =
-    udf((vector: DenseVector) => computeCoreDistance(vector, X, LSHModel, minPts)(ss))
 }
 
 
