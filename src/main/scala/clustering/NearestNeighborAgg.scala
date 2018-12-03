@@ -1,10 +1,10 @@
 package clustering
 
-import org.apache.spark.sql.Row
+import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
+import org.apache.spark.sql.expressions.Aggregator
+import org.apache.spark.sql.{Encoder, Encoders, Row}
 import org.apache.spark.sql.expressions.{MutableAggregationBuffer, UserDefinedAggregateFunction}
 import org.apache.spark.sql.types._
-
-
 /** user defined aggregation function to fetch nearest neighbors of a collection of
 	* points in a dataframe
 	*
@@ -18,12 +18,10 @@ class NearestNeighborAgg(k: Int, idCol: String, distanceCol: String) extends Use
 		StructField(idCol, LongType) :: StructField(distanceCol, DoubleType) :: Nil)
 
 		//TODO find better implementation, with Params ??
-//		var k: Int = 2
-//		def setK(k: Int): Unit = this.k = k
 
 
 	/* override bufferSchema
-		sortedDistance conatains the sequence of distances to i
+		sortedDistance contains the sequence of distances to i
 		keyVales map(vector2Id to distance(vector1, vector2)
 	 */
 	def bufferSchema: StructType = {
@@ -72,13 +70,55 @@ class NearestNeighborAgg(k: Int, idCol: String, distanceCol: String) extends Use
 		Map[Long, Double]((kNeighbor, kDist))
 	}
 
-	//TODO how to unit test pricate function?
+	//TODO how to unit test private function?
 	def sortInsert(currentDistances: Seq[Double], newDist: Double): Seq[Double] = {
 	currentDistances match {
 		case head +: tail => if (newDist < head)  Seq[Double](newDist +: head +:  tail: _*)
 			else head +: sortInsert(tail, newDist)
 		case head +: Nil =>  Seq[Double](head, newDist)
 		case Nil => Seq(newDist)
+		}
+	}
+}
+
+case class GroupRow(j: Long, distIJ: Double) extends GenericRowWithSchema
+case class GroupBuffer(sortedList: Seq[(Long, Double)])
+
+//@TODO fix class
+class NearestNeighborAgg2(k: Int) extends Aggregator[GroupRow, GroupBuffer, (Long,Double)]
+	with Serializable {
+	override def bufferEncoder: Encoder[GroupBuffer] = Encoders.kryo[GroupBuffer]
+
+	//	override def outputEncoder: Encoder[(Long, Double)] = Encoders.product[(Long, Double)]
+	override def outputEncoder: Encoder[(Long, Double)] = Encoders.kryo[(Long, Double)]
+
+	override def zero: GroupBuffer = GroupBuffer(Seq[(Long, Double)]())
+
+	override def merge(b1: GroupBuffer, b2: GroupBuffer): GroupBuffer = {
+		var sortedTuples = Seq[(Long, Double)]()
+
+		for (x <- b1.sortedList){sortedTuples = sortInsert(sortedTuples, x)}
+		for (x <- b2.sortedList){sortedTuples = sortInsert(sortedTuples, x)}
+
+		GroupBuffer(sortedTuples)
+	}
+
+	override def reduce(buffer: GroupBuffer, input: GroupRow): GroupBuffer = {
+		GroupBuffer(sortInsert(buffer.sortedList, (input.j, input.distIJ)))
+	}
+
+	override def finish(buffer: GroupBuffer): (Long, Double) = {
+		buffer.sortedList(k-1	)
+	}
+
+
+	def sortInsert(currentList: Seq[(Long, Double)], newTuple: (Long, Double)): Seq[(Long, Double)] = {
+		currentList match {
+			case head +: tail =>
+				if (newTuple._2 > head._2) head +: sortInsert(tail, newTuple)
+				else newTuple +: head +: tail
+			case head +: Nil => Seq(head, newTuple)
+			case Nil => Seq(newTuple)
 		}
 	}
 
