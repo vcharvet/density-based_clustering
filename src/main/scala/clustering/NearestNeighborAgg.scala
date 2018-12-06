@@ -2,12 +2,15 @@ package clustering
 
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
 import org.apache.spark.sql.expressions.Aggregator
-import org.apache.spark.sql.{Encoder, Encoders, Row}
+import org.apache.spark.sql.{Encoder, Encoders, Row, TypedColumn}
 import org.apache.spark.sql.expressions.{MutableAggregationBuffer, UserDefinedAggregateFunction}
 import org.apache.spark.sql.types._
+
+
 /** user defined aggregation function to fetch nearest neighbors of a collection of
 	* points in a dataframe
 	*
+	* @deprecated use  other class instead
 	* It is suposed to be used for a dataframe (i, j, distance(i,j)) grouped by key i
 	* NearestNeighborAgg fetches the kth nearest neighbor in each group and its distance
 	*
@@ -81,20 +84,21 @@ class NearestNeighborAgg(k: Int, idCol: String, distanceCol: String) extends Use
 	}
 }
 
-case class GroupRow(j: Long, distIJ: Double) extends GenericRowWithSchema
+case class GroupRow(j: Long, distIJ: Double) //extends GenericRowWithSchema
 case class GroupBuffer(sortedList: Seq[(Long, Double)])
 
-//@TODO fix class
-class NearestNeighborAgg2(k: Int) extends Aggregator[GroupRow, GroupBuffer, (Long,Double)]
+//@TODO add parameter, finish different for 'optics' or 'hdbscan"
+class NearestNeighborAgg2(k: Int, colName: String) extends Aggregator[Row, GroupBuffer, (Long, Double)]
 	with Serializable {
 	override def bufferEncoder: Encoder[GroupBuffer] = Encoders.kryo[GroupBuffer]
 
-	//	override def outputEncoder: Encoder[(Long, Double)] = Encoders.product[(Long, Double)]
-	override def outputEncoder: Encoder[(Long, Double)] = Encoders.kryo[(Long, Double)]
+		override def outputEncoder: Encoder[(Long, Double)] = Encoders.tuple(Encoders.scalaLong, Encoders.scalaDouble)
+//	override def outputEncoder: Encoder[Map[Long, Double]] = Encoders.kryo[Map[Long, Double]]
 
 	override def zero: GroupBuffer = GroupBuffer(Seq[(Long, Double)]())
 
 	override def merge(b1: GroupBuffer, b2: GroupBuffer): GroupBuffer = {
+	//TODO optimize merge
 		var sortedTuples = Seq[(Long, Double)]()
 
 		for (x <- b1.sortedList){sortedTuples = sortInsert(sortedTuples, x)}
@@ -103,12 +107,18 @@ class NearestNeighborAgg2(k: Int) extends Aggregator[GroupRow, GroupBuffer, (Lon
 		GroupBuffer(sortedTuples)
 	}
 
-	override def reduce(buffer: GroupBuffer, input: GroupRow): GroupBuffer = {
-		GroupBuffer(sortInsert(buffer.sortedList, (input.j, input.distIJ)))
+	override def reduce(buffer: GroupBuffer, input: Row): GroupBuffer = {
+		val castedRow = input.getAs[Row](colName)
+		GroupBuffer(sortInsert(buffer.sortedList,
+			(castedRow.getAs[Long](0), castedRow.getAs[Double](1))))
 	}
 
 	override def finish(buffer: GroupBuffer): (Long, Double) = {
-		buffer.sortedList(k-1	)
+//		GroupRow(buffer.sortedList(k-1)._1, buffer.sortedList(k-1)._2)
+		// retrieve kth-nearest neighbor and distance
+		val couple = buffer.sortedList(k-1)
+//		Map[Long, Double]((couple._1, couple._2))
+		couple
 	}
 
 

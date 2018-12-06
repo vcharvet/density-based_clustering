@@ -57,6 +57,8 @@ class NeighborsAgregatorTest extends FlatSpec {
 		val computed = grouped_df.agg(udfAgg($"j", $"distIJ").alias("kNeighborDistance") )
   			.orderBy("i")
 
+		computed.show()
+
 		val expected = ss.sparkContext.parallelize(Seq(
 			(3l, Map[Long, Double]((4l, 4d))),
 			(4l, Map[Long, Double]((5l, 5d))),
@@ -83,7 +85,7 @@ class NeighborsAgregator2Test extends FlatSpec {
 		(3l, 5l, 1d),
 		(4l, 3l, 4d),
 		(4l, 5l, 5d),
-		(5l, 4l, 1d),
+		(5l, 3l, 1d),
 		(5l, 4l, 5d)))
   	.map(row => (row._1, GroupRow(row._2, row._3)))
   	.toDF("i", "distIJ")
@@ -104,7 +106,7 @@ class NeighborsAgregator2Test extends FlatSpec {
 
 	"Sorting distances" should "yield" in {
 		val sequence = Seq[(Long, Double)]( (0l,1d), (1l,2), (2l,3), (3l,4), (4l,6), (5l,7))
-		val udfAgg = new NearestNeighborAgg2(2)
+		val udfAgg = new NearestNeighborAgg2(2, "distIJ")
 		val computed = udfAgg.sortInsert(sequence, (6l,5d))
 
 		val expected = Seq((0l,1d), (1l,2), (2l,3), (3l,4), (6l,5d), (4l,6), (5l,7))
@@ -112,8 +114,8 @@ class NeighborsAgregator2Test extends FlatSpec {
 		assertResult(expected)(computed)
 	}
 
-	"Aggregator on small df" should "yield" in {
-		val udfAgg = new NearestNeighborAgg2(2).toColumn
+	"Aggregator on small df" should "yield" in {  //delete this test
+		val udfAgg = new NearestNeighborAgg2(2, "distIJ").toColumn
 		val resCol = dfGroup.as[GroupRow].select(udfAgg)
 
 		assertResult((4l, 4d))(resCol.head())
@@ -121,11 +123,11 @@ class NeighborsAgregator2Test extends FlatSpec {
 
 	"Aggregator on 2 nearest neighbors" should "yield" in{
 //		println("Test not yet implemented")
-		val udfAgg = new NearestNeighborAgg2(2)
+		val udfAgg = new NearestNeighborAgg2(2, "distIJ")
 
 
 //		val computed = ds.groupByKey(_._1). //.alias("kNeighborDistance"))
-		val computed = ds.groupBy("i").agg(udfAgg.toColumn(col("distIJ")).as("coreDist"))
+		val computed = ds.groupBy($"i").agg(udfAgg.toColumn as "coreDist")
 			.orderBy("i")
 
 		println("Computed: ds")
