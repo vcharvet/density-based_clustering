@@ -17,6 +17,7 @@ class SpanningTreeTest extends FlatSpec{
 
 	import ss.implicits._
 
+	// graph with all components
 	val inputDF = ss.sparkContext.parallelize(Seq[(Long, Long, Double)](
 		(0, 1, 2),
 		(0, 2, 2),
@@ -33,6 +34,15 @@ class SpanningTreeTest extends FlatSpec{
 		(3, 4, 5),
 		(3, 5, 5)))
 
+	// edges for subgraph with two connected components
+	val inputSubgraph =  ss.sparkContext.parallelize(Seq[(Long, Long, Double)](
+		(0, 1, 2),
+		(0, 2, 2),
+		(1, 2, 2),
+		(3, 4, 5),
+		(4, 5, 5),
+		(3, 5, 5)))
+
 	val vertices = ss.sparkContext.parallelize(Seq[(VertexId, Long)](
 		(0, 0),
 		(1, 1),
@@ -44,6 +54,8 @@ class SpanningTreeTest extends FlatSpec{
 	val graph = Graph[Long, Double](vertices, inputDF.map(
 		triplet => Edge(triplet._1, triplet._2, triplet._3)))
 
+	val subgraph =  Graph[Long, Double](vertices, inputSubgraph.map(
+		triplet => Edge(triplet._1, triplet._2, triplet._3)))
 
 	val exactMST = ss.sparkContext.parallelize(Seq[Edge[Double]](
 		Edge(0, 1, 2),
@@ -54,16 +66,48 @@ class SpanningTreeTest extends FlatSpec{
 
 		val spanningTree = new SpanningTree()
 
-	"Naive PRIM algorithm" should "yield" in {
+	"Naive Prim algorithm" should "yield" in {
 		val naiveComputedMST = spanningTree.naivePrim(graph)(ss)
   			.sortBy(edge => (edge.srcId, edge.dstId))
 
 //		naiveComputedMST.foreach(println(_))
 //  		.sortBy(_.srcId, true)
-
-
 		assertResult(exactMST.collect().map(_.attr).sum) (naiveComputedMST.collect().map(_.attr).sum)
+	}
 
+	"4 and 5 in complete graph " should "be connected" in {
+		val connected45 = spanningTree.areConnected(5l, 4l, graph)
+
+		assertResult(true)(connected45)
+	}
+
+	"0 and 5 in complete graph" should "be connected" in {
+		val connected05 = spanningTree.areConnected(0l, 5l, graph)
+
+		assertResult(true)(connected05)
+	}
+
+	"4 and 5 in subgraph" should "be connected" in {
+		val connected45 = spanningTree.areConnected(4l, 5l, subgraph)
+
+		assertResult(true)(connected45)
+	}
+
+	"0 and 5 in subgraph" should "not be connected" in {
+		val connected05 = spanningTree.areConnected(0l, 5l, subgraph)
+
+		assertResult(false)(connected05)
+	}
+
+
+	"Naive Kruskal" should "yield" in {
+		val naiveComputedMST = spanningTree.naiveKruskal(graph)(ss)
+  		.sortBy(edge => (edge.srcId, edge.dstId))
+
+
+//		println("Naive computed MST:")
+//		naiveComputedMST.foreach(println(_))
+		assertResult(exactMST.collect().map(_.attr).sum) (naiveComputedMST.collect().map(_.attr).sum)
 	}
 
 }
