@@ -45,7 +45,7 @@ class OPTICS (
 
 
 	// core algorithm
-	def run(df: DataFrame)(ss: SparkSession): DataFrame = {
+	def run(df: DataFrame)(implicit ss: SparkSession): DataFrame = {
 		import ss.implicits._
 
 		val assembler = new VectorAssembler()
@@ -102,7 +102,7 @@ class OPTICS (
 		// Spanning Tree
 		val tree = new SpanningTree()
 
-		val spanningTree = tree.naivePrim(mutualReachGraph)(ss)
+		val spanningTree = tree.naivePrim(mutualReachGraph)
 		val spanningGraph = Graph(mutualReachGraph.vertices, spanningTree)
 
 		val prunedGraph = spanningGraph.subgraph(triplets => triplets.attr < this.epsilon)

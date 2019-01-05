@@ -13,6 +13,7 @@ reachability graph. The mutual reachability graph is also computed in this class
 Graph viz with zeppelin: https://stackoverflow.com/questions/38735413/graphx-visualization
 
 TODO Encoders for scala Set available since Spark 2.3
+TODO change classes so that they return Graphs, not RDD[Edge]
  */
 class SpanningTree {
 	/** implementation taken from
@@ -21,7 +22,7 @@ class SpanningTree {
 		* @param Graph
 		* @return
 		*/
-	def naivePrim(Graph: Graph[Long, Double])(ss: SparkSession): RDD[Edge[Double]] = {
+	def naivePrim(Graph: Graph[Long, Double])(implicit ss: SparkSession): RDD[Edge[Double]] = {
 		val emptyEdges = ss.sparkContext.parallelize(Seq[Edge[Double]]())
 		val emptyVertices = ss.sparkContext.parallelize(Seq[(VertexId, Long)]())
 //		var MST = Graph(emptyVertices, emptyEdges)
@@ -60,29 +61,37 @@ class SpanningTree {
 		MST
 	}
 
-
-	def naiveKruskal(graph: Graph[Long, Double])(ss: SparkSession): RDD[Edge[Double]] = {
+	/** Implementation of Kruskal algorithm to find a Minimum Spanning Tree (MST)
+		* The vertices of input graph are the samples wheras the edges' weights are the mutual reachability
+		* distance from one point to another
+		*
+		* @param graph
+		* @param ss
+		* @return
+		*/
+	def naiveKruskal(graph: Graph[Long, Double])(implicit  ss: SparkSession): RDD[Edge[Double]] = {
 		val edgesMST =  ss.sparkContext.parallelize(Seq[Edge[Double]]())
 		val verticesMST = ss.sparkContext.parallelize(Seq[(VertexId, Long)]())
 
-//		val sortedEdges = graph.edges.sortBy[Double](_.attr).cache()
+		val sortedEdges = graph.edges.sortBy[Double](_.attr).cache()
 //		val graphOrdered = Graph(graph.vertices, sortedEdges)
-//		val graphOrdered = Graph.fromEdges(sortedEdges, 0L)
+		val graphOrdered = Graph.fromEdges(sortedEdges, 0L)
 
-		val MST = recursiveKruskal(graph, Graph(verticesMST, edgesMST))(ss)
+		val MST = recursiveKruskal(graphOrdered, Graph(verticesMST, edgesMST))
 
 		MST.edges
 	}
 
+//--> to localIterator , _.sort(_.attr).reduce()
 	def recursiveKruskal(orderedGraph: Graph[Long, Double],
-		spanningGraph: Graph[Long, Double])(ss: SparkSession): Graph[Long, Double] = {
+		spanningGraph: Graph[Long, Double])(implicit ss: SparkSession): Graph[Long, Double] = {
 			// termination
 			if (orderedGraph.edges.isEmpty()) {
 				spanningGraph
 			}
 			else {
-//				val edge = orderedGraph.triplets.first()
-					val edge = orderedGraph.triplets.takeOrdered(1)(Ordering.by(_.attr)).apply(0)
+				val edge = orderedGraph.triplets.first()
+//					val edge = orderedGraph.triplets.takeOrdered(1)(Ordering.by(_.attr)).apply(0)
 				// if src and dst are connected: we remove the edge and continue
 				if (areConnected(edge.srcId, edge.dstId, spanningGraph)){
 					recursiveKruskal(orderedGraph.subgraph(triplet => triplet != edge),
