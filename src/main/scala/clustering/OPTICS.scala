@@ -2,7 +2,6 @@ package clustering
 
 import org.apache.spark.graphx.Graph
 import org.apache.spark.internal.Logging
-import org.apache.spark.ml.feature.VectorAssembler
 import org.apache.spark.ml.linalg.DenseVector
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
@@ -14,7 +13,7 @@ class OPTICS (
 	private var idCol: String,
 	private var distance: (DenseVector, DenseVector) => Double,
 	// change to Seq[String] ?
-	private var featureCols: Seq[String]) extends Serializable with Logging {
+	private var featureCols: String) extends Serializable with Logging {
 
 //	private def this(idCol: String, distance: (DenseVector, DenseVector) => Double,
 //		featureCols: Seq[String]) =
@@ -39,27 +38,21 @@ class OPTICS (
 	def setDistance(newDistance: (DenseVector, DenseVector) => Double): Unit =
 		this.distance = newDistance
 
-	def getFeatureCols(): Seq[String] = this.featureCols
+	def getFeatureCols(): String = this.featureCols
 
-	def setFeatureCols(newFeatureCols: Seq[String]): Unit = this.featureCols = newFeatureCols
+	def setFeatureCols(newFeatureCols: String): Unit = this.featureCols = newFeatureCols
 
 
 	// core algorithm
 	def run(df: DataFrame)(implicit ss: SparkSession): DataFrame = {
 		import ss.implicits._
 
-		val assembler = new VectorAssembler()
-  		.setInputCols(this.featureCols.toArray)
-  		.setOutputCol("features")
-
-		val dfFeatures = assembler.transform(df)
-  		.drop(this.featureCols: _*)
 
 		val neighbors = new Neighbors(this.mpts)
 		val dfDistance = neighbors.pointWiseDistance(
-			dfFeatures,
+			df,
 			this.idCol,
-			"features",
+			this.featureCols,
 			this.distance,
 			false)
   		.select(this.idCol, this.idCol + "_2", "distance")

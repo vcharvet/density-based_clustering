@@ -1,6 +1,7 @@
 package clustering
 
 import org.apache.log4j.{Level, Logger}
+import org.apache.spark.ml.feature.VectorAssembler
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.ml.linalg.Vectors
 import org.scalatest.FlatSpec
@@ -9,9 +10,9 @@ class OPTICSTest extends FlatSpec{
 	Logger.getLogger("org").setLevel(Level.WARN)
 	Logger.getLogger("akka").setLevel(Level.WARN)
 
-	val ss = SparkSession.builder
+	implicit val ss = SparkSession.builder
 		.appName("clustering.CoreDistance Unit Test")
-		.master("local[*]")
+		.master("local[1]")
 		.getOrCreate()
 
 	import ss.implicits._
@@ -26,11 +27,19 @@ class OPTICSTest extends FlatSpec{
 			.toDF("id", "x", "y")
 			.cache()
 
-	val optics = new OPTICS(30D, 2, "id", Vectors.sqdist, Seq("x", "y"))
+	def assembler = new VectorAssembler()
+  	.setInputCols(Array("x", "y"))
+  	.setOutputCol("features")
+
+val dfFeatures = assembler
+  .transform(df)
+  .drop("x", "y")
+
+	val optics = new OPTICS(30D, 2, "id", Vectors.sqdist, "features")
 //	optics.setDistance(Vectors.sqdist)
 
 
-	val computed = optics.run(df)(ss)
+	val computed = optics.run(dfFeatures)(ss)
 
 	"clustering OPTICS" should "yield" in {
 		val expected = ss.sparkContext.parallelize(Seq(
