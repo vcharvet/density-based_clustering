@@ -1,10 +1,11 @@
-package clustering
+package org.local.clustering
 
 import org.apache.spark.ml.linalg.{DenseVector, Vectors}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.functions.udf
 import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 import breeze.linalg.{DenseMatrix, DenseVector => BreezeVector}
+import org.apache.spark.sql.expressions.UserDefinedFunction
 
 
 
@@ -67,7 +68,7 @@ class Neighbors(neighbors: Int){
     distanceDF
   }
 
-  def distanceUDF(distance: (DenseVector, DenseVector) => Double) = //TODO type annotation?
+  def distanceUDF(distance: (DenseVector, DenseVector) => Double): UserDefinedFunction =
     udf((vector1: DenseVector, vector2: DenseVector) => distance(vector1, vector2))
 
   /** fetches kth nearest neighbor for each point in df[idCol1]
@@ -81,14 +82,15 @@ class Neighbors(neighbors: Int){
     * @return
     */
   def kNearestNeighbor(df: DataFrame, idCol1: String, idCol2: String,
-    distanceCol: String)(ss: SparkSession) : DataFrame = {
+    distanceCol: String)(implicit ss: SparkSession) : DataFrame = {
 
-    val nnAgg = new clustering.NearestNeighborAgg(
+    val nnAgg = new NearestNeighborAgg(
       this.neighbors, idCol1, distanceCol)
 
     val dfGroup = df
+      .select(idCol1, idCol2, distanceCol)
       .groupBy(idCol1)
-      .agg(nnAgg(col(idCol2), col(distanceCol)))
+      .agg(nnAgg.toColumn)
       .alias("kNNDistance")
       .orderBy(idCol1)  // ?
 
