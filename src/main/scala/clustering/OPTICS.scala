@@ -1,17 +1,17 @@
-package clustering
+package org.local.clustering
 
 import org.apache.spark.graphx.Graph
 import org.apache.spark.internal.Logging
 import org.apache.spark.ml.linalg.DenseVector
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
-//TODO pass ss arguments as implicit
 
 class OPTICS (
 	private var epsilon: Double,
 	private var mpts: Int,
 	private var idCol: String,
 	private var distance: (DenseVector, DenseVector) => Double,
+	private var treeAlgo: String,
 	// change to Seq[String] ?
 	private var featureCols: String) extends Serializable with Logging {
 
@@ -95,7 +95,13 @@ class OPTICS (
 		// Spanning Tree
 		val tree = new SpanningTree()
 
-		val spanningTree = tree.naivePrim(mutualReachGraph)
+//		val spanningTree = tree.naivePrim(mutualReachGraph)
+		val spanningTree = this.treeAlgo match {
+			case "prim" => tree.naivePrim(mutualReachGraph)
+			case "kruskal" => tree.naiveKruskal(mutualReachGraph)
+			case _ => throw new IllegalArgumentException(s"${this.treeAlgo} is not  a valid argument for treeAlgo attribute")
+		}
+
 		val spanningGraph = Graph(mutualReachGraph.vertices, spanningTree)
 
 		val prunedGraph = spanningGraph.subgraph(triplets => triplets.attr < this.epsilon)

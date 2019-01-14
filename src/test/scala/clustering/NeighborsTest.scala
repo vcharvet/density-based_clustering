@@ -1,4 +1,4 @@
-package  clustering
+package  org.local.clustering
 
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.ml.feature.{BucketedRandomProjectionLSH, VectorAssembler}
@@ -42,7 +42,7 @@ class NeighborsTest extends FlatSpec {
   val idCol = "id"
   val featureCol = "features"
 
-  val neighbors = new clustering.Neighbors(3)
+  val neighbors = new Neighbors(3)
 
   "dissimilarity matrix" should "yield" in {
     val computedMatrix = neighbors.dissimilarityMatrix(df_features, idCol, featureCol,
@@ -84,6 +84,7 @@ class NeighborsTest extends FlatSpec {
     assertResult(expectedDF.collect())(computedDF.select("id", "id_2", "distance").collect())
   }
 
+  //TODO implement test for kNearestNeighbor
 	"kNearestNeighbor" should "yield" in {
 		println("Not yet implemented")
 

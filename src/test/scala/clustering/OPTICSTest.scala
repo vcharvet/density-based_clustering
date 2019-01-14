@@ -1,4 +1,4 @@
-package clustering
+package org.local.clustering
 
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.ml.feature.VectorAssembler
@@ -11,7 +11,7 @@ class OPTICSTest extends FlatSpec{
 	Logger.getLogger("akka").setLevel(Level.WARN)
 
 	implicit val ss = SparkSession.builder
-		.appName("clustering.CoreDistance Unit Test")
+		.appName("clustering.OPTICS Unit Test")
 		.master("local[1]")
 		.getOrCreate()
 
@@ -35,23 +35,37 @@ val dfFeatures = assembler
   .transform(df)
   .drop("x", "y")
 
-	val optics = new OPTICS(30D, 2, "id", Vectors.sqdist, "features")
-//	optics.setDistance(Vectors.sqdist)
 
 
-	val computed = optics.run(dfFeatures)(ss)
+	val expected = ss.sparkContext.parallelize(Seq(
+		(0l, 0l),
+		(1l, 0l),
+		(2l, 0l),
+		(3l, 3l),
+		(4l, 3l),
+		(5l, 3l)))
+		.toDF()
+  	.cache()
 
-	"clustering OPTICS" should "yield" in {
-		val expected = ss.sparkContext.parallelize(Seq(
-			(0l, 0l),
-			(1l, 0l),
-			(2l, 0l),
-			(3l, 3l),
-			(4l, 3l),
-			(5l, 3l)))
-			.toDF()
+	"clustering OPTICS with kruskal" should "yield" in {
+		val t0 = System.nanoTime
+		val optics = new OPTICS(30D, 2, "id", Vectors.sqdist, "kruskal", "features")
+
+		val computed = optics.run(dfFeatures)
+		print(s"OPTICS with kruskal ran in ${(System.nanoTime - t0) / 1e9d}")
+
 		assertResult(expected.collect())(computed.collect())
-
 	}
+
+	"clustering OPTICS with prim" should "yield" in {
+		val t0 = System.nanoTime
+		val optics = new OPTICS(30D, 2, "id", Vectors.sqdist, "prim", "features")
+
+		val computed = optics.run(dfFeatures)
+		println(s"OPTICS with prim ran in ${(System.nanoTime - t0) / 1e9d}")
+
+		assertResult(expected.collect())(computed.collect())
+	}
+
 
 }

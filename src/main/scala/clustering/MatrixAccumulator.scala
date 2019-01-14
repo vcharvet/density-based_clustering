@@ -1,10 +1,9 @@
-package clustering
+package org.local.clustering
 
 import breeze.linalg.DenseMatrix
 import org.apache.spark.util.AccumulatorV2
 
 
-//@TODO consider changing ints to longs
 /** accumulator class for dense matrices
   *
   * @param rows

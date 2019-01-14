@@ -1,4 +1,4 @@
-package clustering
+package org.local.clustering
 
 import breeze.linalg.{DenseMatrix, DenseVector}
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
@@ -44,7 +44,6 @@ class MutualReachabilityGraph {
 		Graph(vertices, edges)
 		}
 
-	//TODO Implement test
 	def fromJoinDF(dfJoin: DataFrame, iCol: String, jCol: String,
 		distCol: String, coreDistICol: String, coreDistJCol: String)(ss: SparkSession):
 		Graph[Long, Double] = {

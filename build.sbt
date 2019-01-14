@@ -2,6 +2,8 @@ import sbtassembly.{MergeStrategy, PathList}
 
 name := "density-based_clustering"
 
+organization := "org.local" //change to org.vcharvet?
+
 version := "0.1"
 
 scalaVersion := "2.11.12"

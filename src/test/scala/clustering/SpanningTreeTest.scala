@@ -1,4 +1,4 @@
-package clustering
+package org.local.clustering
 
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.sql.SparkSession
@@ -10,7 +10,7 @@ class SpanningTreeTest extends FlatSpec{
 	Logger.getLogger("org").setLevel(Level.WARN)
 	Logger.getLogger("akka").setLevel(Level.WARN)
 
-	val ss = SparkSession.builder
+	implicit val ss = SparkSession.builder
   	.appName("Spanning Tree computation unit test")
   	.master("local[1]")
   	.getOrCreate()
@@ -66,14 +66,7 @@ class SpanningTreeTest extends FlatSpec{
 
 		val spanningTree = new SpanningTree()
 
-	"Naive Prim algorithm" should "yield" in {
-		val naiveComputedMST = spanningTree.naivePrim(graph)(ss)
-  			.sortBy(edge => (edge.srcId, edge.dstId))
 
-//		naiveComputedMST.foreach(println(_))
-//  		.sortBy(_.srcId, true)
-		assertResult(exactMST.collect().map(_.attr).sum) (naiveComputedMST.collect().map(_.attr).sum)
-	}
 
 	"4 and 5 in complete graph " should "be connected" in {
 		val connected45 = spanningTree.areConnected(5l, 4l, graph)
@@ -99,11 +92,19 @@ class SpanningTreeTest extends FlatSpec{
 		assertResult(false)(connected05)
 	}
 
+	"Naive Prim algorithm" should "yield" in {
+		val t0 = System.nanoTime
+		val naiveComputedMST = spanningTree.naivePrim(graph)
+			.sortBy(edge => (edge.srcId, edge.dstId))
+		println(s"MST with prim done in ${(System.nanoTime - t0) / 1e9d} \n")
+		assertResult(exactMST.collect().map(_.attr).sum) (naiveComputedMST.collect().map(_.attr).sum)
+	}
 
 	"Naive Kruskal" should "yield" in {
-		val naiveComputedMST = spanningTree.naiveKruskal(graph)(ss)
+		val t0 = System.nanoTime
+		val naiveComputedMST = spanningTree.naiveKruskal(graph)
   		.sortBy(edge => (edge.srcId, edge.dstId))
-
+		println(s"MST with kruskal done in ${(System.nanoTime - t0) / 1e9d} \n")
 
 //		println("Naive computed MST:")
 //		naiveComputedMST.foreach(println(_))

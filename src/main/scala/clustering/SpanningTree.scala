@@ -1,4 +1,4 @@
-package clustering
+package org.local.clustering
 
 import org.apache.spark.graphx._
 import org.apache.spark.rdd.RDD
@@ -22,20 +22,27 @@ class SpanningTree {
 		* @param Graph
 		* @return
 		*/
-	def naivePrim(Graph: Graph[Long, Double])(implicit ss: SparkSession): RDD[Edge[Double]] = {
-		val emptyEdges = ss.sparkContext.parallelize(Seq[Edge[Double]]())
-		val emptyVertices = ss.sparkContext.parallelize(Seq[(VertexId, Long)]())
+	def naivePrim(graph: Graph[Long, Double])(implicit ss: SparkSession): RDD[Edge[Double]] = {
+//		val emptyEdges = ss.sparkContext.parallelize(Seq[Edge[Double]]())
+//		val emptyVertices = ss.sparkContext.parallelize(Seq[(VertexId, Long)]())
 //		var MST = Graph(emptyVertices, emptyEdges)
+		graph.persist()
 		var MST = ss.sparkContext.parallelize(Seq[Edge[Double]]())
 
-		val bySrc = Graph.triplets.map(triplet => (triplet.srcId, triplet))
-		val byDst = Graph.triplets.map(triplet => (triplet.dstId, triplet))
-		// rdd for encontered vertices
-		var Vt = ss.sparkContext.parallelize(Array(Graph.pickRandomVertex()))
+		val bySrc = graph.triplets.map(triplet => (triplet.srcId, triplet))
+			.persist()
+		val byDst = graph.triplets.map(triplet => (triplet.dstId, triplet))
+			.persist()
 
-		val vCount = Graph.vertices.count()
+		// rdd for encountered vertices
+		var Vt = ss.sparkContext.parallelize(Array(graph.pickRandomVertex()))
 
-		while (Vt.count() < vCount){
+		val vCount = graph.vertices.count()
+
+		var i = 1l
+//		while (Vt.count() < vCount){
+		while (i < vCount){
+			i = i + 1
 			val hVt = Vt.map(x => (x, x))
 
 			val bySrcJoined = bySrc.join(hVt).map(_._2._1)
@@ -64,7 +71,7 @@ class SpanningTree {
 	/** Implementation of Kruskal algorithm to find a Minimum Spanning Tree (MST)
 		* The vertices of input graph are the samples wheras the edges' weights are the mutual reachability
 		* distance from one point to another
-		*
+		*!
 		* @param graph
 		* @param ss
 		* @return
@@ -85,13 +92,15 @@ class SpanningTree {
 //--> to localIterator , _.sort(_.attr).reduce()
 	def recursiveKruskal(orderedGraph: Graph[Long, Double],
 		spanningGraph: Graph[Long, Double])(implicit ss: SparkSession): Graph[Long, Double] = {
+			orderedGraph.persist()
+			spanningGraph.persist()
 			// termination
 			if (orderedGraph.edges.isEmpty()) {
 				spanningGraph
 			}
 			else {
 				val edge = orderedGraph.triplets.first()
-//					val edge = orderedGraph.triplets.takeOrdered(1)(Ordering.by(_.attr)).apply(0)
+//				val edge = orderedGraph.triplets.takeOrdered(1)(Ordering.by(_.attr)).apply(0)
 				// if src and dst are connected: we remove the edge and continue
 				if (areConnected(edge.srcId, edge.dstId, spanningGraph)){
 					recursiveKruskal(orderedGraph.subgraph(triplet => triplet != edge),

@@ -1,4 +1,4 @@
-package clustering
+package org.local.clustering
 
 import org.apache.spark.sql.expressions.Aggregator
 import org.apache.spark.sql.{Encoder, Encoders, Row}
