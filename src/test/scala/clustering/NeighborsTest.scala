@@ -42,7 +42,7 @@ class NeighborsTest extends FlatSpec {
   val idCol = "id"
   val featureCol = "features"
 
-  val neighbors = new Neighbors(3)
+  val neighbors = new Neighbors(2)
 
   "dissimilarity matrix" should "yield" in {
     val computedMatrix = neighbors.dissimilarityMatrix(df_features, idCol, featureCol,
@@ -60,35 +60,38 @@ class NeighborsTest extends FlatSpec {
     assertResult(expectedMatrix)(computedMatrix)
   }
 
+  val expectedDF = ss.sparkContext.parallelize(Seq(
+    (0l, 1l, 1D),
+    (0l, 2l, 1D),
+    (0l, 3l, 36D),
+    (0l, 4l, 64D),
+    (0l, 5l, 37D),
+    (1l, 2l, 2D),
+    (1l, 3l, 37D),
+    (1l, 4l, 65D),
+    (1l, 5l, 36D),
+    (2l, 3l, 49D),
+    (2l, 4l, 81D),
+    (2l, 5l, 50D),
+    (3l, 4l, 4D),
+    (3l, 5l, 1D),
+    (4l, 5l, 5D)))
+    .toDF("id", "id_2", "distance")
+
+
   "pointWise distance computation" should "yield" in {
     val computedDF = neighbors.pointWiseDistance(df_features, "id", "features", Vectors.sqdist)
-
-    val expectedDF = ss.sparkContext.parallelize(Seq(
-      (0l, 1l, 1D),
-      (0l, 2l, 1D),
-      (0l, 3l, 36D),
-      (0l, 4l, 64D),
-      (0l, 5l, 37D),
-      (1l, 2l, 2D),
-      (1l, 3l, 37D),
-      (1l, 4l, 65D),
-      (1l, 5l, 36D),
-      (2l, 3l, 49D),
-      (2l, 4l, 81D),
-      (2l, 5l, 50D),
-      (3l, 4l, 4D),
-      (3l, 5l, 1D),
-      (4l, 5l, 5D)))
-      .toDF("id", "id_2", "distance")
 
     assertResult(expectedDF.collect())(computedDF.select("id", "id_2", "distance").collect())
   }
 
   //TODO implement test for kNearestNeighbor
-	"kNearestNeighbor" should "yield" in {
-		println("Not yet implemented")
+	"core distance with aggregator" should "yield" in {
+	  val distanceNoFilter = neighbors.pointWiseDistance(df_features, "id", "features", Vectors.sqdist, false)
+	  val computedKNN = neighbors.coreDistance(distanceNoFilter, "id", "id_2", "distance")(ss)
 
-		assertResult(true)(false)
+     computedKNN.show()
+     assertResult(Array[Double](1, 2, 2, 4, 5, 5))(computedKNN.select("coreDistance").collect().map(_.get(0)))
 	}
 }
 

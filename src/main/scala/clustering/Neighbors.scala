@@ -72,7 +72,7 @@ class Neighbors(neighbors: Int){
     udf((vector1: DenseVector, vector2: DenseVector) => distance(vector1, vector2))
 
   /** fetches kth nearest neighbor for each point in df[idCol1]
-    * The aggregator returns DaatFrame[i, Map(kNN(i), CD(i)]
+    * The aggregator returns DaatFrame[i, kNN(i, CD(i)]
     *
     * @param df
     * @param idCol1
@@ -81,8 +81,9 @@ class Neighbors(neighbors: Int){
     * @param ss
     * @return
     */
-  def kNearestNeighbor(df: DataFrame, idCol1: String, idCol2: String,
+  def coreDistance(df: DataFrame, idCol1: String, idCol2: String,
     distanceCol: String)(implicit ss: SparkSession) : DataFrame = {
+    import ss.implicits._
 
     val nnAgg = new NearestNeighborAgg(
       this.neighbors, idCol1, distanceCol)
@@ -90,8 +91,8 @@ class Neighbors(neighbors: Int){
     val dfGroup = df
       .select(idCol1, idCol2, distanceCol)
       .groupBy(idCol1)
-      .agg(nnAgg.toColumn)
-      .alias("kNNDistance")
+      .agg(nnAgg.toColumn as "kNNDistance")
+      .withColumn("coreDistance", $"kNNDistance".getField("_2"))
       .orderBy(idCol1)  // ?
 
     dfGroup
