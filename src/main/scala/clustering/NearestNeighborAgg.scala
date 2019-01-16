@@ -32,9 +32,15 @@ class NearestNeighborAgg(k: Int, idCol: String, distCol: String) extends Aggrega
 
 	override def finish(buffer: GroupBuffer): (Long, Double) = {
 		// retrieve kth-nearest neighbor and distance
-		val couple = buffer.sortedList(k-1)
+		val couple = try {
+			buffer.sortedList(k - 1)
+		}
+		catch {
+			case e: IndexOutOfBoundsException => buffer.sortedList.last
+		}
 		couple
 	}
+
 
 	def sortInsert(currentList: Seq[(Long, Double)], newTuple: (Long, Double)): Seq[(Long, Double)] = {
 		currentList match {
