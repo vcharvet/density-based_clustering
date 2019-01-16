@@ -18,7 +18,7 @@ Graph viz with zeppelin: https://stackoverflow.com/questions/38735413/graphx-vis
 TODO Encoders for scala Set available since Spark 2.3
 TODO change classes so that they return Graphs, not RDD[Edge]
  */
-class SpanningTree {
+class SpanningTree extends Serializable {
 
 	/** computes minimum spanning tree on given graph in a distributed fashion
 		*
@@ -27,14 +27,18 @@ class SpanningTree {
 		* @tparam U
 		* @return
 		*/
-	def distributedMST[U](graph: Graph[U, Double])(implicit ss: SparkSession): RDD[Edge[Double]] = {
-		val numPartitions = graph.edges.getNumPartitions
+	def distributedMST[U](graph: Graph[U, Double], numRepartions: Option[Int]=None)(implicit ss: SparkSession): RDD[Edge[Double]] = {
+//		val numPartitions = numRepartions match {
+//			case None => graph.edges.getNumPartitions
+//			case Some(i: Int) => i
+//		}
 
 		val rddLocalTrees = graph.edges
+			.repartition(numRepartions.getOrElse(graph.edges.getNumPartitions))
 			.sortBy(_.attr)
-			.mapPartitions(localPrim(_))
+			.mapPartitionsWithIndex((partition, edges) => localKruskal(edges, partition))
 
-		graph.edges
+		rddLocalTrees.map(_._2)
 	}
 
 
@@ -161,8 +165,8 @@ class SpanningTree {
 		* @param MST
 		* @return
 		*/
-	def localKruskal(iterator: Iterator[Edge[Double]]): Iterator[Edge[Double]] = {
-		var edgesMST = Seq[Edge[Double]]()
+	def localKruskal(iterator: Iterator[Edge[Double]], partitionIndex: Int): Iterator[(Int,Edge[Double])] = {
+		var edgesMST = Seq[(Int, Edge[Double])]()
 		// duplicate to use iterator twices
 		val (it1, it2) = iterator.duplicate
 		val verticesTuples = it1.toSeq.unzip(asPair = edge =>(edge.srcId, edge.dstId))
@@ -172,11 +176,10 @@ class SpanningTree {
 		for (i <- 0 to vertices.length - 1){
 			unionFind.add(vertices(i))
 		}
-		for (edge <- it2){
-//			println(s"on iteration over ${edge.srcId}, ${edge.dstId}, ${edge.attr}: ")
-//			unionFind.getParent().foreach(println(_))
+		while (it2.hasNext & edgesMST.length < unionFind.size){
+			val edge = it2.next()
 			if (! unionFind.areConnected(edge.srcId, edge.dstId)) {
-				edgesMST = edgesMST :+ edge
+				edgesMST = edgesMST :+ (partitionIndex, edge)
 				unionFind.union(edge.srcId, edge.dstId)
 			}
 		}
