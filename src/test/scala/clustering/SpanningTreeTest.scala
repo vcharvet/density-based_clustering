@@ -92,6 +92,18 @@ class SpanningTreeTest extends FlatSpec{
 		assertResult(false)(connected05)
 	}
 
+	"local Kruskal" should "yield" in {
+		val t0 = System.nanoTime
+
+		val edgesIterator = graph.edges.sortBy(_.attr).toLocalIterator
+
+		val localComputedMST = spanningTree.localKruskal(edgesIterator).toSeq
+		println(s"local Kruskal MST done in ${(System.nanoTime - t0) / 1e9d}")
+
+		assertResult(exactMST.collect().map(_.attr).sum) (localComputedMST.map(_.attr).sum)
+
+	}
+
 	"Naive Prim algorithm" should "yield" in {
 		val t0 = System.nanoTime
 		val naiveComputedMST = spanningTree.naivePrim(graph)

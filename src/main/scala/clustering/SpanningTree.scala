@@ -3,8 +3,11 @@ package org.local.clustering
 import org.apache.spark.graphx._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SparkSession}
+
+import collection.mutable.{PriorityQueue, Set}
 import org.apache.spark.storage.StorageLevel
 
+import scala.collection.mutable
 import scala.reflect.ClassTag  // for viz
 
 /* the objective of class SpanningTree is to build the minimum spanning tree of the mutual
@@ -16,6 +19,25 @@ TODO Encoders for scala Set available since Spark 2.3
 TODO change classes so that they return Graphs, not RDD[Edge]
  */
 class SpanningTree {
+
+	/** computes minimum spanning tree on given graph in a distributed fashion
+		*
+		* @param graph
+		* @param ss
+		* @tparam U
+		* @return
+		*/
+	def distributedMST[U](graph: Graph[U, Double])(implicit ss: SparkSession): RDD[Edge[Double]] = {
+		val numPartitions = graph.edges.getNumPartitions
+
+		val rddLocalTrees = graph.edges
+			.sortBy(_.attr)
+			.mapPartitions(localPrim(_))
+
+		graph.edges
+	}
+
+
 	/** implementation taken from
 		* https://stackoverflow.com/questions/36831804/how-to-parallel-prims-algorithm-in-graphx/36892399#36892399
 		*
@@ -68,6 +90,16 @@ class SpanningTree {
 		MST
 	}
 
+	def localPrim(iterator: Iterator[Edge[Double]]): Iterator[Edge[Double]] = {
+		val vertices = iterator.toSeq.map(_.dstId) ++ iterator.toSeq.map(_.srcId)
+			.distinct
+		var edgesMST = Seq[Edge[Double]]()
+		// priority queue containing all vertices
+		val queue = PriorityQueue[(VertexId, Double)](vertices.map((_, Double.MaxValue)): _*)(Ordering.by(_._2))
+
+		edgesMST.toIterator
+	}
+
 	/** Implementation of Kruskal algorithm to find a Minimum Spanning Tree (MST)
 		* The vertices of input graph are the samples wheras the edges' weights are the mutual reachability
 		* distance from one point to another
@@ -92,8 +124,8 @@ class SpanningTree {
 //--> to localIterator , _.sort(_.attr).reduce()
 	def recursiveKruskal(orderedGraph: Graph[Long, Double],
 		spanningGraph: Graph[Long, Double])(implicit ss: SparkSession): Graph[Long, Double] = {
-			orderedGraph.persist()
-			spanningGraph.persist()
+//			orderedGraph.persist()
+//			spanningGraph.persist()
 			// termination
 			if (orderedGraph.edges.isEmpty()) {
 				spanningGraph
@@ -122,6 +154,36 @@ class SpanningTree {
 				}
 			}
 		}
+
+	/** performs MST coputatin on a single partition of an rdd
+		*
+		* @param iterator
+		* @param MST
+		* @return
+		*/
+	def localKruskal(iterator: Iterator[Edge[Double]]): Iterator[Edge[Double]] = {
+		var edgesMST = Seq[Edge[Double]]()
+		// duplicate to use iterator twices
+		val (it1, it2) = iterator.duplicate
+		val verticesTuples = it1.toSeq.unzip(asPair = edge =>(edge.srcId, edge.dstId))
+		val vertices = (verticesTuples._1 ++ verticesTuples._2).distinct
+
+		val unionFind = new DisjointSet[VertexId]
+		for (i <- 0 to vertices.length - 1){
+			unionFind.add(vertices(i))
+		}
+		for (edge <- it2){
+//			println(s"on iteration over ${edge.srcId}, ${edge.dstId}, ${edge.attr}: ")
+//			unionFind.getParent().foreach(println(_))
+			if (! unionFind.areConnected(edge.srcId, edge.dstId)) {
+				edgesMST = edgesMST :+ edge
+				unionFind.union(edge.srcId, edge.dstId)
+			}
+		}
+		edgesMST.toIterator
+		}
+
+
 
 	/** returns true if src and dst are connected in graph
 		*
