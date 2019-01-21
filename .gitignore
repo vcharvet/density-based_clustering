@@ -1,6 +1,6 @@
 logs
-data
-!data/datasets
+data/*
+!data/datasets/
 
 .idea
 target
