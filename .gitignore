@@ -1,4 +1,7 @@
 logs
+data
+!data/datasets
+
 .idea
 target
 
