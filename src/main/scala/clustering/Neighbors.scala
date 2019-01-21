@@ -3,6 +3,7 @@ package org.local.clustering
 import org.apache.spark.ml.linalg.{DenseVector, Vectors}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.functions.udf
+import org.apache.spark.ml.feature.BucketedRandomProjectionLSH
 import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 import breeze.linalg.{DenseMatrix, DenseVector => BreezeVector}
 import org.apache.spark.sql.expressions.UserDefinedFunction
@@ -97,6 +98,46 @@ class Neighbors(neighbors: Int){
 
     dfGroup
   }
+
+
+ def approximateCoreDistance(df: DataFrame, idCol1: String, featureCol: String, seed: Long,
+	 thresh: Double, bucketLength: Double, customDist: Option[(DenseVector, DenseVector) => Double])
+	 (implicit ss: SparkSession): DataFrame = {
+	 import ss.implicits._
+	 def lshModel = new BucketedRandomProjectionLSH()
+		 .setInputCol(featureCol)
+  	 .setBucketLength(bucketLength)
+		 .setSeed(seed)
+		 .fit(df)
+
+
+	 val dfSimJoin = lshModel.approxSimilarityJoin(df, df, thresh)
+  	 .filter($"distCol" =!= 0d)
+  	 .withColumn(idCol1, col("datasetA.id"))
+  	 .withColumn(featureCol, col(s"datasetA.$featureCol"))
+  	 .withColumn(idCol1 + "_2", col("datasetB.id"))
+  	 .withColumn(featureCol + "_2", col(s"datasetB.$featureCol"))
+  	 .drop("datasetA")
+  	 .drop("datasetB")
+		 .dropDuplicates()
+
+	 val dfDist = customDist match {
+	 	case Some(distance) => dfSimJoin.withColumn("customDist", distanceUDF(distance)(col(featureCol), col(featureCol + "_2")))
+	 	case None => dfSimJoin.withColumn("customDist", $"distCol")
+	 }
+//
+
+	 val nearestNeighborAgg = new NearestNeighborAgg(this.neighbors, idCol1, "customDist")
+
+	 val dfCD = dfDist.select(idCol1, idCol1 + "_2", "customDist")
+		 .groupBy(idCol1)
+		 .agg(nearestNeighborAgg.toColumn as "KNNDistance")
+		 .withColumn("coreDistance", $"kNNDistance".getField("_2"))
+		 .orderBy(idCol1)
+		dfCD
+	 }
+
+
 
 }
 

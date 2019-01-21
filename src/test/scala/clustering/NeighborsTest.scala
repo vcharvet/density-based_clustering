@@ -16,7 +16,7 @@ class NeighborsTest extends FlatSpec {
   Logger.getLogger("org").setLevel(Level.WARN)
   Logger.getLogger("akka").setLevel(Level.WARN)
 
-  val ss = SparkSession.builder
+  implicit val ss = SparkSession.builder
     .appName("clustering.CoreDistance Unit Test")
     .master("local[1]")
     .getOrCreate()
@@ -89,9 +89,17 @@ class NeighborsTest extends FlatSpec {
 	"core distance with aggregator" should "yield" in {
 	  val distanceNoFilter = neighbors.pointWiseDistance(df_features, "id", "features", Vectors.sqdist, false)
 	  val computedKNN = neighbors.coreDistance(distanceNoFilter, "id", "id_2", "distance")(ss)
-
+    println("exact doreDistance df:")
      computedKNN.show()
      assertResult(Array[Double](1, 2, 2, 4, 5, 5))(computedKNN.select("coreDistance").collect().map(_.get(0)))
+	}
+
+	"approximate core distance" should "yield" in{
+	  val computedCD = neighbors.approximateCoreDistance(df_features, idCol, featureCol, 1l, 20d, 5d, Some(Vectors.sqdist))
+
+    println("approximated core distance df:")
+    computedCD.show()
+	  assertResult(Array[Double](1, 2, 2, 4, 5, 5))(computedCD.select("coreDistance").collect().map(_.get(0)))
 	}
 }
 
