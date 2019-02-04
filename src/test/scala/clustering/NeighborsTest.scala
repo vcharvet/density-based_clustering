@@ -85,7 +85,6 @@ class NeighborsTest extends FlatSpec {
     assertResult(expectedDF.collect())(computedDF.select("id", "id_2", "distance").collect())
   }
 
-  //TODO implement test for kNearestNeighbor
 	"core distance with aggregator" should "yield" in {
 	  val distanceNoFilter = neighbors.pointWiseDistance(df_features, "id", "features", Vectors.sqdist, false)
 	  val computedKNN = neighbors.coreDistance(distanceNoFilter, "id", "id_2", "distance")(ss)

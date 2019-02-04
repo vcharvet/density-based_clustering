@@ -14,6 +14,8 @@ import org.apache.spark.sql.expressions.UserDefinedFunction
    */
 class Neighbors(neighbors: Int){
   /** compute similarity distance between samples in df
+		*
+		* TODO implement a kd-tree version of approximate distance
     *
     *
     * @param df DataFrame containing client features and ids ['id', 'features'] like
@@ -119,7 +121,7 @@ class Neighbors(neighbors: Int){
   	 .withColumn(featureCol + "_2", col(s"datasetB.$featureCol"))
   	 .drop("datasetA")
   	 .drop("datasetB")
-		 .dropDuplicates()
+		 .dropDuplicates(idCol1, idCol1 + "_2")
 
 	 val dfDist = customDist match {
 	 	case Some(distance) => dfSimJoin.withColumn("customDist", distanceUDF(distance)(col(featureCol), col(featureCol + "_2")))
