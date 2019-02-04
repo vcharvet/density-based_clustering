@@ -68,40 +68,40 @@ class SpanningTreeTest extends FlatSpec{
 
 
 
-	"4 and 5 in complete graph " should "be connected" in {
-		val connected45 = spanningTree.areConnected(5l, 4l, graph)
-
-		assertResult(true)(connected45)
-	}
-
-	"0 and 5 in complete graph" should "be connected" in {
-		val connected05 = spanningTree.areConnected(0l, 5l, graph)
-
-		assertResult(true)(connected05)
-	}
-
-	"4 and 5 in subgraph" should "be connected" in {
-		val connected45 = spanningTree.areConnected(4l, 5l, subgraph)
-
-		assertResult(true)(connected45)
-	}
-
-	"0 and 5 in subgraph" should "not be connected" in {
-		val connected05 = spanningTree.areConnected(0l, 5l, subgraph)
-
-		assertResult(false)(connected05)
-	}
-
-	"local Kruskal" should "yield" in {
-		val t0 = System.nanoTime
-
-		val edgesIterator = graph.edges.sortBy(_.attr).toLocalIterator
-
-		val localComputedMST = spanningTree.localKruskal(edgesIterator, 0).toSeq
-		println(s"local Kruskal MST done in ${(System.nanoTime - t0) / 1e9d}")
-
-		assertResult(exactMST.collect().map(_.attr).sum) (localComputedMST.map(_._2).map(_.attr).sum)
-	}
+//	"4 and 5 in complete graph " should "be connected" in {
+//		val connected45 = spanningTree.areConnected(5l, 4l, graph)
+//
+//		assertResult(true)(connected45)
+//	}
+//
+//	"0 and 5 in complete graph" should "be connected" in {
+//		val connected05 = spanningTree.areConnected(0l, 5l, graph)
+//
+//		assertResult(true)(connected05)
+//	}
+//
+//	"4 and 5 in subgraph" should "be connected" in {
+//		val connected45 = spanningTree.areConnected(4l, 5l, subgraph)
+//
+//		assertResult(true)(connected45)
+//	}
+//
+//	"0 and 5 in subgraph" should "not be connected" in {
+//		val connected05 = spanningTree.areConnected(0l, 5l, subgraph)
+//
+//		assertResult(false)(connected05)
+//	}
+//
+//	"local Kruskal" should "yield" in {
+//		val t0 = System.nanoTime
+//
+//		val edgesIterator = graph.edges.sortBy(_.attr).toLocalIterator
+//
+//		val localComputedMST = spanningTree.localKruskal(edgesIterator, 0).toSeq
+//		println(s"local Kruskal MST done in ${(System.nanoTime - t0) / 1e9d}")
+//
+//		assertResult(exactMST.collect().map(_.attr).sum) (localComputedMST.map(_._2).map(_.attr).sum)
+//	}
 
 	"distributed MST" should "yield" in {
 		val t0 = System.nanoTime
@@ -111,23 +111,23 @@ class SpanningTreeTest extends FlatSpec{
 		assertResult(exactMST.collect().map(_.attr).sum) (distributedMST.collect().map(_.attr).sum)
 	}
 
-	"Naive Prim algorithm" should "yield" in {
-		val t0 = System.nanoTime
-		val naiveComputedMST = spanningTree.naivePrim(graph)
-			.sortBy(edge => (edge.srcId, edge.dstId))
-		println(s"MST with prim done in ${(System.nanoTime - t0) / 1e9d} \n")
-		assertResult(exactMST.collect().map(_.attr).sum) (naiveComputedMST.collect().map(_.attr).sum)
-	}
-
-	"Naive Kruskal" should "yield" in {
-		val t0 = System.nanoTime
-		val naiveComputedMST = spanningTree.naiveKruskal(graph)
-  		.sortBy(edge => (edge.srcId, edge.dstId))
-		println(s"MST with kruskal done in ${(System.nanoTime - t0) / 1e9d} \n")
-
-//		println("Naive computed MST:")
-//		naiveComputedMST.foreach(println(_))
-		assertResult(exactMST.collect().map(_.attr).sum) (naiveComputedMST.collect().map(_.attr).sum)
-	}
+//	"Naive Prim algorithm" should "yield" in {
+//		val t0 = System.nanoTime
+//		val naiveComputedMST = spanningTree.naivePrim(graph)
+//			.sortBy(edge => (edge.srcId, edge.dstId))
+//		println(s"MST with prim done in ${(System.nanoTime - t0) / 1e9d} \n")
+//		assertResult(exactMST.collect().map(_.attr).sum) (naiveComputedMST.collect().map(_.attr).sum)
+//	}
+//
+//	"Naive Kruskal" should "yield" in {
+//		val t0 = System.nanoTime
+//		val naiveComputedMST = spanningTree.naiveKruskal(graph)
+//  		.sortBy(edge => (edge.srcId, edge.dstId))
+//		println(s"MST with kruskal done in ${(System.nanoTime - t0) / 1e9d} \n")
+//
+////		println("Naive computed MST:")
+////		naiveComputedMST.foreach(println(_))
+//		assertResult(exactMST.collect().map(_.attr).sum) (naiveComputedMST.collect().map(_.attr).sum)
+//	}
 
 }

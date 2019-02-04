@@ -37,8 +37,32 @@ class SpanningTree extends Serializable {
 			.repartition(numRepartions.getOrElse(graph.edges.getNumPartitions))
 			.sortBy(_.attr)
 			.mapPartitionsWithIndex((partition, edges) => localKruskal(edges, partition))
+		//TODO add step to merge local MSTs with reduceByKey
 
-		rddLocalTrees.map(_._2)
+		val graphLocalTrees = Graph.fromEdges(rddLocalTrees.map(_._2), 0l)
+
+		val edgesMST = graphLocalTrees.edges
+			.repartition(1)
+			.sortBy(_.attr)
+			.mapPartitionsWithIndex((partition, edges) => localKruskal(edges, partition))
+			.map(_._2)
+//		val combinedTrees = rddLocalTree
+//			.combineByKey[DisjointSet[VertexId]](
+//			(edge: Edge[Double]) => {
+//					val unionFind = new DisjointSet[VertexId]
+////					unionFind.union(edge.srcId, edge.dstId)
+//					unionFind.add(edge.srcId).add(edge.dstId)
+//					unionFind},
+//				(set: DisjointSet[VertexId], edge: Edge[Double]) => {
+//					set.union(edge.srcId, edge.dstId)
+////					set.add(edge.srcId).add(edge.dstId)
+//					set},
+//				(leftSet: DisjointSet[VertexId], rightSet: DisjointSet[VertexId]) => leftSet.merge(rightSet))
+//		val reducedTree = combinedTrees
+//			.map(_._2)
+//  		.reduce((leftSet, rightSet) => leftSet.merge(rightSet))
+//		val edgesMST = graph.edges.filter(edge => reducedTree.areConnected(edge.srcId, edge.dstId))
+		edgesMST
 	}
 
 
