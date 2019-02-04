@@ -2,7 +2,7 @@ package org.local.clustering
 
 import org.apache.spark.graphx.Graph
 import org.apache.spark.internal.Logging
-import org.apache.spark.ml.linalg.DenseVector
+import org.apache.spark.ml.linalg.{DenseVector, Vectors}
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
 
@@ -10,9 +10,9 @@ class OPTICS (
 	private var epsilon: Double,
 	private var mpts: Int,
 	private var idCol: String,
-	private var distance: (DenseVector, DenseVector) => Double,
-	private var treeAlgo: String,
-	// change to Seq[String] ?
+	private var distance: Option[(DenseVector, DenseVector) => Double], // or nonr
+	private var treeAlgo: String, //"prim" or "kruskal" or "distributed"
+	private var method: String, // "exact" or "lsh'
 	private var featureCols: String) extends Serializable with Logging {
 
 //	private def this(idCol: String, distance: (DenseVector, DenseVector) => Double,
@@ -33,9 +33,9 @@ class OPTICS (
 
 	def setIdCol(newIdCol: String): Unit = this.idCol = newIdCol
 
-	def getDistance(): (DenseVector, DenseVector) => Double = this.distance
+	def getDistance(): Option[(DenseVector, DenseVector) => Double] = this.distance
 
-	def setDistance(newDistance: (DenseVector, DenseVector) => Double): Unit =
+	def setDistance(newDistance: Option[(DenseVector, DenseVector) => Double]): Unit =
 		this.distance = newDistance
 
 	def getFeatureCols(): String = this.featureCols
@@ -46,23 +46,43 @@ class OPTICS (
 	// core algorithm
 	def run(df: DataFrame)(implicit ss: SparkSession): DataFrame = {
 		import ss.implicits._
+		println(s"Running OPTICS algorithm on df ${df.toString()}")
 
+		println("Computing pointwise distances...")
+		//variable to keep track of execution time
+		var t0 = System.nanoTime
 
+		val seed = 1l
+		val thresh = 20d
+		val bucketLength = 5d
 		val neighbors = new Neighbors(this.mpts)
+
 		val dfDistance = neighbors.pointWiseDistance(
 			df,
 			this.idCol,
 			this.featureCols,
-			this.distance,
+			this.distance.getOrElse(Vectors.sqdist),
 			false)
   		.select(this.idCol, this.idCol + "_2", "distance")
 
+		println(s"Pointwise distances computed in ${(System.nanoTime - t0) / 1e9d}s")
+
+		//aggregator for core-distance TODO should be replaced by Neighbors.kNearestNeighbor
 		val udfAgg = new NearestNeighborAgg(this.mpts, this.idCol + "_2", "distance")
 
-		val dfCoreDists = dfDistance.groupBy(this.idCol).agg(udfAgg.toColumn as "coreDistTuple")
-  		.withColumn("coreDistance", $"coreDistTuple".getField("_2"))
-  		.drop("coreDistTuple")
+		t0 = System.nanoTime
+		println("Computing core distances...")
+//		val dfCoreDists = dfDistance.groupBy(this.idCol).agg(udfAgg.toColumn as "coreDistTuple")
+//  		.withColumn("coreDistance", $"coreDistTuple".getField("_2"))
+//  		.drop("coreDistTuple")
+		val dfCoreDists = method match {
+			case "exact" => neighbors.coreDistance(dfDistance, idCol, idCol + "_2", "distance")
+			case "lsh" => neighbors.approximateCoreDistance(df, idCol, featureCols, seed, thresh, bucketLength, distance)
+			case _ => throw new IllegalArgumentException(s"${method} is not valid argument for this.method, " +
+				s"use'exact' or 'lsh' instead")
+}
 
+		println(s"Core distances done in  ${(System.nanoTime - t0) / 1e9d}s")
 		// outliers are samples which core distance is greater than epsilon
 		val dfOutliers = dfCoreDists
 			.filter(row => row.getAs[Double]("coreDistance") > this.epsilon)
@@ -84,23 +104,32 @@ class OPTICS (
 		// mutual rechability graph
 		val mutualReachability = new MutualReachabilityGraph()
 
+		t0 = System.nanoTime
+		println("Computing mutual reachability graph...")
 		val mutualReachGraph = mutualReachability.fromJoinDF(
 			dfDistCoreDist,
 			this.idCol,
 			this.idCol + "_2",
 			"distance",
 			"coreDistance",
-			"coreDistance_2")(ss)
+			"coreDistance_2" +
+				"")(ss)
+
+		println(s"Mutual reachability graph done in ${(System.nanoTime - t0) / 1e9d}s")
 
 		// Spanning Tree
 		val tree = new SpanningTree()
 
+		t0 = System.nanoTime
+		println("Computing minimum spanning tree...")
 //		val spanningTree = tree.naivePrim(mutualReachGraph)
 		val spanningTree = this.treeAlgo match {
 			case "prim" => tree.naivePrim(mutualReachGraph)
 			case "kruskal" => tree.naiveKruskal(mutualReachGraph)
+			case "distributed" => tree.distributedMST(mutualReachGraph, Some(1)) //change numPartitions
 			case _ => throw new IllegalArgumentException(s"${this.treeAlgo} is not  a valid argument for treeAlgo attribute")
 		}
+		println(s"Spanning tree computed in ${(System.nanoTime - t0) / 1e9d}s")
 
 		val spanningGraph = Graph(mutualReachGraph.vertices, spanningTree)
 
@@ -115,6 +144,9 @@ class OPTICS (
   		.join(connectedComponnents.vertices)
 			.map{case (id, (row, vertexID)) => (id, vertexID)}
 			.toDF(this.idCol, "clusterID")
+
+		println(s"OPTICS run completed - Displaying resulting df: \n")
+		dfClusters.show()
 
 
 		dfClusters
