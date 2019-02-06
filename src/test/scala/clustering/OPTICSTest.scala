@@ -57,39 +57,33 @@ val dfFeatures = assembler
 //		assertResult(expected.collect())(computed.collect())
 //	}
 
-	"clustering OPTICS with exact distances and prim" should "yield" in {
-		val t0 = System.nanoTime
-		val optics = new OPTICS(30D, 2, "id", Some(Vectors.sqdist), "prim", "exact", "features")
-
-		val computed = optics.run(dfFeatures)
-
-		info(s"ran in ${(System.nanoTime - t0) / 1e9d}")
-		assertResult(expected.collect())(computed.collect())
-	}
+//	"clustering OPTICS with exact distances and prim" should "yield" in {
+//		val t0 = System.nanoTime
+//		val optics = new OPTICS(30D, 2, "id", Some(Vectors.sqdist), "prim", "exact", "features")
+//
+//		val computed = optics.run(dfFeatures)
+//
+//		info(s"ran in ${(System.nanoTime - t0) / 1e9d}")
+//		assertResult(expected.collect())(computed.collect())
+//	}
 
 	"clustering OPTICS with exact distances and distributed MST" should "yield" in {
 		val t0 = System.nanoTime
-		val optics = new OPTICS(30D, 2, "id", Some(Vectors.sqdist), "distributed", "exact", "features")
+		val optics = new OPTICS(30D, 2, "id", Some(Vectors.sqdist), "distributed", "exact",
+			Some(2), "features")
 		val computed = optics.run(dfFeatures)
 
 		info(s"ran in ${(System.nanoTime - t0) / 1e9d}")
 		assertResult(expected.collect())(computed.collect())
 	}
 
-	"clustering OPTICS with approximate distances and distributed MST" should "yield" in {
-		val t0 = System.nanoTime
-		val optics = new OPTICS(30D, 2, "id", Some(Vectors.sqdist), "distributed", "lsh", "features")
-		val computed = optics.run(dfFeatures)
-
-		info(s"Ran in ${(System.nanoTime - t0) / 1e9d}")
-		assertResult(expected.collect())(computed.collect())
-	}
-	"clustering OPTICS with approximate native distances and distributed MST" should "yield" in {
-		val t0 = System.nanoTime
-		val optics = new OPTICS(30D, 2, "id", None, "distributed", "lsh", "features")
-		val computed = optics.run(dfFeatures)
-
-		info(s"Ran in ${(System.nanoTime - t0) / 1e9d}")
-		assertResult(expected.collect())(computed.collect())
-	}
+//	"clustering OPTICS with approximate distances and distributed MST" should "yield" in {
+//		val t0 = System.nanoTime
+//		val optics = new OPTICS(30D, 2, "id", Some(Vectors.sqdist), "distributed", "lsh",
+//			2, "features")
+//		val computed = optics.run(dfFeatures)
+//
+//		info(s"Ran in ${(System.nanoTime - t0) / 1e9d}")
+//		assertResult(expected.collect())(computed.collect())
+//	}
 }

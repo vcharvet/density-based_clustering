@@ -4,6 +4,7 @@ import org.apache.spark.graphx.Graph
 import org.apache.spark.internal.Logging
 import org.apache.spark.ml.linalg.{DenseVector, Vectors}
 import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.functions
 
 
 class OPTICS (
@@ -13,6 +14,7 @@ class OPTICS (
 	private var distance: Option[(DenseVector, DenseVector) => Double], // or nonr
 	private var treeAlgo: String, //"prim" or "kruskal" or "distributed"
 	private var method: String, // "exact" or "lsh'
+	private var numPartitions: Option[Int],
 	private var featureCols: String) extends Serializable with Logging {
 
 //	private def this(idCol: String, distance: (DenseVector, DenseVector) => Double,
@@ -86,6 +88,8 @@ class OPTICS (
 		// outliers are samples which core distance is greater than epsilon
 		val dfOutliers = dfCoreDists
 			.filter(row => row.getAs[Double]("coreDistance") > this.epsilon)
+  		.withColumn("clusterID", functions.lit(-1l) )
+  		.select(idCol, "clusterID")
 
 		val dfOthers =  dfCoreDists
 			.filter(row => row.getAs[Double]("coreDistance") <= this.epsilon)
@@ -126,7 +130,7 @@ class OPTICS (
 		val spanningTree = this.treeAlgo match {
 			case "prim" => tree.naivePrim(mutualReachGraph)
 			case "kruskal" => tree.naiveKruskal(mutualReachGraph)
-			case "distributed" => tree.distributedMST(mutualReachGraph, Some(1)) //change numPartitions
+			case "distributed" => tree.distributedMST(mutualReachGraph, numPartitions) //change numPartitions
 			case _ => throw new IllegalArgumentException(s"${this.treeAlgo} is not  a valid argument for treeAlgo attribute")
 		}
 		println(s"Spanning tree computed in ${(System.nanoTime - t0) / 1e9d}s")
@@ -145,11 +149,11 @@ class OPTICS (
 			.map{case (id, (row, vertexID)) => (id, vertexID)}
 			.toDF(this.idCol, "clusterID")
 
-		println(s"OPTICS run completed - Displaying resulting df: \n")
-		dfClusters.show()
+//		println(s"OPTICS run completed - Displaying resulting df: \n")
+//		dfClusters.show()
 
 
-		dfClusters
+		dfClusters.union(dfOutliers)
 	}
 }
 
