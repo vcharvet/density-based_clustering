@@ -61,13 +61,13 @@ class MutualReachabilityGraph {
 			val mReach = List(dist, coreDistI, coreDistJ).max
 			Edge(i, j, mReach)
 		})
-  		.rdd
+//  		.rdd
+	//TODO build graph from edges
+//		val vertices = dfJoin.select(iCol).distinct()
+//  		.rdd
+//  		.map(row => (row.getAs[Long](iCol), row.getAs[Long](iCol)))
 
-		val vertices = dfJoin.select(iCol).distinct()
-  		.rdd
-  		.map(row => (row.getAs[Long](iCol), row.getAs[Long](iCol)))
-
-		Graph(vertices, edges)
+//		Graph(vertices, edges)
+		Graph.fromEdges[Long, Double](edges.rdd, 0l)
 		}
-
 }

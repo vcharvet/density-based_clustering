@@ -108,7 +108,7 @@ class MutualReachabilityTest extends FlatSpec{
 
 		println(s"Time to compute mutual reachability graph from join df: ${(System.nanoTime - t0) / 1e9d}")
 
-		assertResult(actualGraph.vertices.collect().sortBy(t => t._1))(computedVertices.collect().sortBy(t => t._1))
+		assertResult(actualGraph.vertices.map(_._1).collect().sorted)(computedVertices.map(_._1).collect().sorted)
 	}
 
 	"Edges in join" should "yield" in {
