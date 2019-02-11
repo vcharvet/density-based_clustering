@@ -1,7 +1,7 @@
 package org.local.clustering
 
 import breeze.linalg.{DenseMatrix, DenseVector}
-import org.apache.spark.sql.{DataFrame, Row, SparkSession}
+import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 import org.apache.spark.broadcast
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.graphx._
@@ -46,7 +46,7 @@ class MutualReachabilityGraph {
 
 	def fromJoinDF(dfJoin: DataFrame, iCol: String, jCol: String,
 		distCol: String, coreDistICol: String, coreDistJCol: String)(ss: SparkSession):
-		Graph[Long, Double] = {
+		Dataset[Edge[Double]] = {
 		import ss.implicits._
 
 //		val rddJoin = dfJoin.rdd.map(_.toSeq)
@@ -68,6 +68,6 @@ class MutualReachabilityGraph {
 //  		.map(row => (row.getAs[Long](iCol), row.getAs[Long](iCol)))
 
 //		Graph(vertices, edges)
-		Graph.fromEdges[Long, Double](edges.rdd, 0l)
+		edges //Graph.fromEdges[Long, Double](edges.rdd, 0l)
 		}
 }

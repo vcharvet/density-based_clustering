@@ -1,8 +1,9 @@
-package org.local.clustering
+	package org.local.clustering
 
 import org.apache.spark.graphx._
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 
 import collection.mutable.{PriorityQueue, Set}
 import org.apache.spark.storage.StorageLevel
@@ -27,25 +28,25 @@ class SpanningTree extends Serializable {
 		* @tparam U
 		* @return
 		*/
-	def distributedMST[U](graph: Graph[U, Double], numRepartions: Option[Int]=None)(implicit ss: SparkSession): RDD[Edge[Double]] = {
+	def distributedMST[U](graph: Dataset[Edge[Double]], numRepartions: Option[Int]=None)(implicit ss: SparkSession): RDD[Edge[Double]] = {
+		import ss.implicits._
 //		val numPartitions = numRepartions match {
 //			case None => graph.edges.getNumPartitions
 //			case Some(i: Int) => i
 //		}
 
-		val rddLocalTrees = graph.edges
-			.repartition(numRepartions.getOrElse(graph.edges.getNumPartitions))
-			.sortBy(_.attr)
-			.mapPartitionsWithIndex((partition, edges) => localKruskal(edges, partition))
+		val rddLocalTrees = graph
+//			.repartition(numRepartions.getOrElse(graph.rdd.getNumPartitions))
+			.sortWithinPartitions(col("attr"))
+			.mapPartitions[Edge[Double]]((edges: Iterator[Edge[Double]]) => localKruskal(edges, 0))
 		//TODO add step to merge local MSTs with reduceByKey
 
-		val graphLocalTrees = Graph.fromEdges(rddLocalTrees.map(_._2), 0l)
+//		val graphLocalTrees = Graph.fromEdges(rddLocalTrees.map(_._2), 0l)
 
-		val edgesMST = graphLocalTrees.edges
+		val edgesMST = rddLocalTrees
 			.repartition(1)
-			.sortBy(_.attr)
-			.mapPartitionsWithIndex((partition, edges) => localKruskal(edges, partition))
-			.map(_._2)
+			.sortWithinPartitions(col("attr"))
+			.mapPartitions[Edge[Double]]((edges: Iterator[Edge[Double]])=> localKruskal(edges, 0))
 //		val combinedTrees = rddLocalTree
 //			.combineByKey[DisjointSet[VertexId]](
 //			(edge: Edge[Double]) => {
@@ -62,7 +63,7 @@ class SpanningTree extends Serializable {
 //			.map(_._2)
 //  		.reduce((leftSet, rightSet) => leftSet.merge(rightSet))
 //		val edgesMST = graph.edges.filter(edge => reducedTree.areConnected(edge.srcId, edge.dstId))
-		edgesMST
+		edgesMST.rdd
 	}
 
 
@@ -189,7 +190,7 @@ class SpanningTree extends Serializable {
 		* @param MST
 		* @return
 		*/
-	def localKruskal(iterator: Iterator[Edge[Double]], partitionIndex: Int): Iterator[(Int,Edge[Double])] = {
+	def localKruskal(iterator: Iterator[Edge[Double]], partitionIndex: Int): Iterator[Edge[Double]] = {
 		var edgesMST = Seq[(Int, Edge[Double])]()
 		// duplicate to use iterator twices
 		val (it1, it2) = iterator.duplicate
@@ -207,7 +208,7 @@ class SpanningTree extends Serializable {
 				unionFind.union(edge.srcId, edge.dstId)
 			}
 		}
-		edgesMST.toIterator
+		edgesMST.map(_._2).toIterator
 		}
 
 

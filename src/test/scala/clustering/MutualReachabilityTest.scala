@@ -97,14 +97,14 @@ class MutualReachabilityTest extends FlatSpec{
 
 	"Vertices in join" should "yield" in {
 		val t0 = System.nanoTime
-		val computedGraphJoin = mutualReachability.fromJoinDF(
+		val computedEdgesJoin = mutualReachability.fromJoinDF(
 			wholeCartesian,
 			"i",
 			"j",
 			"distIJ",
 			"coreDist_i",
 			"coreDist_j")(ss)
-		val computedVertices = computedGraphJoin.vertices
+		val computedVertices = Graph.fromEdges[Long, Double](computedEdgesJoin.rdd,  0l).vertices
 
 		println(s"Time to compute mutual reachability graph from join df: ${(System.nanoTime - t0) / 1e9d}")
 
@@ -112,14 +112,14 @@ class MutualReachabilityTest extends FlatSpec{
 	}
 
 	"Edges in join" should "yield" in {
-		val computedGraphJoin = mutualReachability.fromJoinDF(
+		val computedEdgesJoin = mutualReachability.fromJoinDF(
 			wholeCartesian,
 			"i",
 			"j",
 			"distIJ",
 			"coreDist_i",
 			"coreDist_j")(ss)
-		val computededges = computedGraphJoin.edges
+		val computededges = Graph.fromEdges[Long, Double](computedEdgesJoin.rdd,  0l).edges
 		assertResult(actualGraph.edges.collect().sortBy(t => (t.srcId, t.dstId)))(computededges.collect().sortBy(t => (t.srcId, t.dstId)))
 	}
 

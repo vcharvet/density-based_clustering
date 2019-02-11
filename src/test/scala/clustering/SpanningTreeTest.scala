@@ -105,8 +105,8 @@ class SpanningTreeTest extends FlatSpec{
 
 	"distributed MST" should "yield" in {
 		val t0 = System.nanoTime
-		val distributedMST = spanningTree.distributedMST(graph, Some(2))
-		println(s"Distributed MST done in ${(System.nanoTime - t0) / 1e9d} =====>")
+		val distributedMST = spanningTree.distributedMST(graph.edges.toDS(), Some(2))
+		info(s"Distributed MST done in ${(System.nanoTime - t0) / 1e9d} ")
 		distributedMST.collect().foreach(println(_))
 		assertResult(exactMST.collect().map(_.attr).sum) (distributedMST.collect().map(_.attr).sum)
 	}
