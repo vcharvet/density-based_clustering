@@ -15,7 +15,9 @@ libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-graphx" % "2.3.1", 
   "org.scalanlp" %% "breeze" % "0.13.2",
   "org.scalanlp" %% "breeze-natives" % "0.13.2",
-  "org.scalatest" %% "scalatest" % "3.0.5" % "test"
+  "org.scalatest" %% "scalatest" % "3.0.5" % "test",
+  "org.vegas-viz" %% "vegas" % "0.3.11",     // for dataviz
+  "org.vegas-viz" %% "vegas-spark" % "0.3.11"
 )
 
 resolvers ++= Seq(
