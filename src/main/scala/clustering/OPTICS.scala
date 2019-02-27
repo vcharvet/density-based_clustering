@@ -46,7 +46,7 @@ class OPTICS (
 
 
 	// core algorithm
-	def run(df: DataFrame)(implicit ss: SparkSession): DataFrame = {
+	def run(df: DataFrame, n: Option[Long], p: Option[Int])(implicit ss: SparkSession): DataFrame = {
 		import ss.implicits._
 		println(s"Running OPTICS algorithm on df ${df.toString()}")
 
@@ -54,9 +54,11 @@ class OPTICS (
 		//variable to keep track of execution time
 		var t0 = System.nanoTime
 
+		val nSamples = n.getOrElse(df.count)
+		val nFeatures = p.getOrElse(2)
 		val seed = 1l
-		val thresh = 20d
-		val bucketLength = 5d
+		val thresh = math.sqrt(nFeatures.toDouble)
+		val bucketLength = math.pow(nSamples.toDouble, -1d/nFeatures.toDouble)
 		val neighbors = new Neighbors(this.mpts)
 
 		val dfDistance = neighbors.pointWiseDistance(
@@ -126,34 +128,38 @@ class OPTICS (
 
 		t0 = System.nanoTime
 		println("Computing minimum spanning tree...")
-//		val spanningTree = tree.naivePrim(mutualReachGraph)
 		val spanningTree = this.treeAlgo match {
-			case "prim" => tree.naivePrim(mutualReachGraph)
-			case "kruskal" => tree.naiveKruskal(mutualReachGraph)
-			case "distributed" => tree.distributedMST(mutualReachGraph, numPartitions) //change numPartitions
+			case "distributed" => tree.distributedMST(mutualReachGraph, numPartitions)
 			case _ => throw new IllegalArgumentException(s"${this.treeAlgo} is not  a valid argument for treeAlgo attribute")
 		}
+
 		println(s"Spanning tree computed in ${(System.nanoTime - t0) / 1e9d}s")
 
-		val spanningGraph = Graph(mutualReachGraph.vertices, spanningTree)
+//		val spanningGraph = Graph(mutualReachGraph.vertices, spanningTree)
+		val spanningGraph = Graph.fromEdges[Long, Double](spanningTree, 0l)
 
 		val prunedGraph = spanningGraph.subgraph(triplets => triplets.attr < this.epsilon)
 
 		val connectedComponnents = prunedGraph.ops.connectedComponents()
+  		.vertices
+  		.toDF(idCol, "clusterID")
 
+
+//		val dfClusters = dfOthers.select(idCol)
+//			.join(connectedComponnents, idCol)
 		//each cc corresponds to one cluster
-		val dfClusters = dfOthers
-  		.rdd
-  		.map(row => (row.getAs[Long]("idCoreDist"), row))
-  		.join(connectedComponnents.vertices)
-			.map{case (id, (row, vertexID)) => (id, vertexID)}
-			.toDF(this.idCol, "clusterID")
+//		val dfClusters = dfOthers
+//  		.rdd
+//  		.map(row => (row.getAs[Long]("idCoreDist"), row))
+//  		.join(connectedComponnents.vertices)
+//			.map{case (id, (row, vertexID)) => (id, vertexID)}
+//			.toDF(this.idCol, "clusterID")
+
 
 //		println(s"OPTICS run completed - Displaying resulting df: \n")
-//		dfClusters.show()
 
 
-		dfClusters.union(dfOutliers)
+		connectedComponnents.union(dfOutliers)
 	}
 }
 

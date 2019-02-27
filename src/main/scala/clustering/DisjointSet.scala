@@ -5,8 +5,10 @@ import collection.mutable.HashMap
 import scala.collection.mutable
 /** implements a disjoint set data structure for Kruskal algorithm
 	*
+	*  @TODO add method to merge to DisjointSets
+	* taken from http://www.bistaumanga.com.np/blog/unionfind/
 	*/
-class DisjointSet[T]{
+class DisjointSet[T] extends Serializable {
 	private val parent = new mutable.HashMap[T, T]
 	private val rank = new mutable.HashMap[T, Int]
 
@@ -40,6 +42,12 @@ class DisjointSet[T]{
 			parent += (x -> find(parent(x)))
 			parent(x)
 		}
+	}
+
+	def merge(other: DisjointSet[T]) = {
+		parent ++ other.parent
+		rank ++ other.rank
+		this
 	}
 
 	def areConnected(x: T, y: T): Boolean = find(x) == find(y)

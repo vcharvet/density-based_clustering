@@ -3,7 +3,8 @@ package mains
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.ml.clustering.{GaussianMixture, KMeans}
 import org.apache.spark.ml.linalg.Vectors
-import org.apache.spark.ml.feature.VectorAssembler
+import org.apache.spark.ml.Pipeline
+import org.apache.spark.ml.feature.{VectorAssembler, StandardScaler}
 import org.apache.spark.sql.types.LongType
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{DataFrame, SparkSession}
@@ -39,7 +40,7 @@ object BasicClustering {
       .csv(path)
       .na.drop("any")
   		.withColumn("id", $"id"cast(LongType))
-  		.sample(false, 0.1)
+//  		.sample(false, 0.1)
 			.cache()
 
 		raw_DF.show(5)
@@ -51,10 +52,18 @@ object BasicClustering {
 
     // assembles the two feature columns
     val assembler = new VectorAssembler()
+  		.setOutputCol("assembledFeatures")
       .setInputCols(cols)
-      .setOutputCol(features)
 
-    val DF = assembler.transform(raw_DF)
+		val scaler = new StandardScaler()
+  		.setInputCol(assembler.getOutputCol)
+  		.setOutputCol(features)
+
+		val pipeline = new Pipeline()
+  		.setStages(Array(assembler, scaler))
+  		.fit(raw_DF)
+
+    val DF = pipeline.transform(raw_DF)
 
     // clustering algorithms
     var  t0 = System.nanoTime
@@ -81,10 +90,10 @@ object BasicClustering {
 
 
 		t0 = System.nanoTime
-    val optics = new clustering.OPTICS(10D, 3, "id", Some(Vectors.sqdist),
-    	"distributed", "lsh", Some(16), "coordinates")
+    val optics = new clustering.OPTICS(1.4, 2, "id", Some(Vectors.sqdist),
+    	"distributed", "lsh", None, "assembledFeatures")
 
-		val clustersOPTICS = optics.run(DF)
+		val clustersOPTICS = optics.run(DF, Some(nPoints), Some(cols.length))
 		println(s"Execution time for OPTICS: ${(System.nanoTime - t0) / 1e9d}")
 
 		val clustersWithCoord = clustersOPTICS
