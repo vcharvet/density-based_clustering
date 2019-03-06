@@ -9,10 +9,11 @@ version := "0.1"
 scalaVersion := "2.11.12"
 
 libraryDependencies ++= Seq(
-  "org.apache.spark" %% "spark-core" % "2.3.1",
-  "org.apache.spark" %% "spark-sql" % "2.3.1",
-  "org.apache.spark" %% "spark-mllib" % "2.3.1",
-  "org.apache.spark" %% "spark-graphx" % "2.3.1", 
+  "org.scalactic" %% "scalactic" % "3.0.1",
+  "org.apache.spark" %% "spark-core" % "2.3.1" % "provided",
+  "org.apache.spark" %% "spark-sql" % "2.3.1" % "provided",
+  "org.apache.spark" %% "spark-mllib" % "2.3.1" % "provided",
+  "org.apache.spark" %% "spark-graphx" % "2.3.1" % "provided", 
   "org.scalanlp" %% "breeze" % "0.13.2",
   "org.scalanlp" %% "breeze-natives" % "0.13.2",
   "org.scalatest" %% "scalatest" % "3.0.5" % "test",
@@ -23,7 +24,8 @@ libraryDependencies ++= Seq(
 resolvers ++= Seq(
     "Typesafe" at "http://repo.typesafe.com/typesafe/releases/",
     "Apache Repository" at "https://repository.apache.org/content/repositories/releases/",
-    "Java.net Maven2 Repository" at "http://download.java.net/maven/2/"
+    "Java.net Maven2 Repository" at "http://download.java.net/maven/2/",
+    "Artima Maven Repository" at "http://repo.artima.com/releases"
 )
 
 assemblyMergeStrategy in assembly := {
