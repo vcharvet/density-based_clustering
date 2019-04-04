@@ -22,7 +22,7 @@ object BasicClustering {
   def main(args: Array[String]): Unit= {
     Logger.getLogger("org").setLevel(Level.WARN)
     Logger.getLogger("akka").setLevel(Level.WARN)
-    val path = args(0)  //path to input csv file
+    val path = "data/datasets" + args(0)  //name of input csv file
     val n_clusters = args(1).toInt  // number of wanted clusters
 
     val features = "coordinates"
@@ -98,7 +98,7 @@ object BasicClustering {
 
 		val clustersWithCoord = clustersOPTICS
 			.join(raw_DF.select("id", cols(0), cols(1)), "id")
-		clustersWithCoord.show()
+			clustersWithCoord.show()
 
 
 
