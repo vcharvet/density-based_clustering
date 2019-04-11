@@ -4,6 +4,7 @@ import org.apache.log4j.{Level, Logger}
 import org.apache.spark.ml.feature.{BucketedRandomProjectionLSH, VectorAssembler}
 import org.apache.spark.ml.linalg.{DenseVector, Vectors}
 import org.apache.spark.sql._
+import org.apache.spark.sql.functions._
 import org.scalatest.FlatSpec
 import breeze.linalg.{DenseMatrix => BreezeMatrix}
 
@@ -88,13 +89,15 @@ class NeighborsTest extends FlatSpec {
 	"core distance with aggregator" should "yield" in {
 	  val distanceNoFilter = neighbors.pointWiseDistance(df_features, "id", "features", Vectors.sqdist, false)
 	  val computedKNN = neighbors.coreDistance(distanceNoFilter, "id", "id_2", "distance")(ss)
+			.orderBy("id")
     println("exact doreDistance df:")
      computedKNN.show()
      assertResult(Array[Double](1, 2, 2, 4, 5, 5))(computedKNN.select("coreDistance").collect().map(_.get(0)))
 	}
 
 	"approximate core distance" should "yield" in{
-	  val computedCD = neighbors.approximateCoreDistance(df_features, idCol, featureCol, 1l, 20d, 5d, Some(Vectors.sqdist))
+	  val computedCD = neighbors.approximateCoreDistance(df_features, "id", "features", 1l, 20d, 5d, Some(Vectors.sqdist))
+			.orderBy("id")
 
     println("approximated core distance df:")
     computedCD.show()

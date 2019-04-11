@@ -47,6 +47,7 @@ class Neighbors(neighbors: Int){
 
   /** computes pointwise distance between each pair of points
     *
+		* TODO: df.as("df1").join(df.as("df2"), $"df1.foo" === $"df2.foo")
     * @param df
     * @param idCol
     * @param featureCol
@@ -55,24 +56,25 @@ class Neighbors(neighbors: Int){
     * @return
     */
   def pointWiseDistance(df: DataFrame, idCol: String, featureCol: String,
-    distance: (DenseVector, DenseVector) => Double, filter: Boolean=true): DataFrame = {
-//    import ss.implicits._
-    val df2 = df.select(idCol, featureCol)
-      .withColumnRenamed(idCol, idCol + "_2")
-      .withColumnRenamed(featureCol, featureCol + "_2")
+    distance: (DenseVector, DenseVector) => Double, filter: Boolean=true)(implicit  ss: SparkSession): DataFrame = {
+    import ss.implicits._
 
-    val cartesian = df.select(idCol, featureCol)
-      .crossJoin(df2)
-      .filter(if (filter) col(idCol) < col(idCol + "_2") else col(idCol) =!= col(idCol + "_2"))
+		val cartesian = df.as("df1")
+  		.crossJoin(df.as("df2"))
+  		.filter(if (filter) $"df1.${idCol}" < $"df2.${idCol}" else $"df1.${idCol}" =!= $"df2.${idCol}")
 
     val distanceDF = cartesian
-      .withColumn("distance", this.distanceUDF(distance)(col(featureCol), col(featureCol + "_2")))
+      .withColumn("distance", this.distanceUDF(distance)($"df1.${featureCol}",
+      	$"df2.${featureCol}"))
+			.select($"df1.${idCol}".as(idCol), $"df2.${idCol}".as(idCol + "_2"), $"distance")
 
     distanceDF
   }
 
+
   def distanceUDF(distance: (DenseVector, DenseVector) => Double): UserDefinedFunction =
     udf((vector1: DenseVector, vector2: DenseVector) => distance(vector1, vector2))
+
 
   /** fetches kth nearest neighbor for each point in df[idCol1]
     * The aggregator returns DaatFrame[i, kNN(i, CD(i)]
@@ -96,7 +98,7 @@ class Neighbors(neighbors: Int){
       .groupBy(idCol1)
       .agg(nnAgg.toColumn as "kNNDistance")
       .withColumn("coreDistance", $"kNNDistance".getField("_2"))
-      .orderBy(idCol1)  // ?
+//      .orderBy(idCol1)  // ?
 
     dfGroup
   }
@@ -135,7 +137,7 @@ class Neighbors(neighbors: Int){
 		 .groupBy(idCol1)
 		 .agg(nearestNeighborAgg.toColumn as "KNNDistance")
 		 .withColumn("coreDistance", $"kNNDistance".getField("_2"))
-		 .orderBy(idCol1)
+//		 .orderBy(idCol1)
 		dfCD
 	 }
 
