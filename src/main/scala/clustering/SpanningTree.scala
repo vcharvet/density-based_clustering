@@ -28,7 +28,8 @@ class SpanningTree extends Serializable {
 		* @tparam U
 		* @return
 		*/
-	def distributedMST[U](graph: Dataset[Edge[Double]], numRepartions: Option[Int]=None)(implicit ss: SparkSession): RDD[Edge[Double]] = {
+	def distributedMST[U](graph: Dataset[Edge[Double]], numRepartions: Option[Int]=None)(implicit ss: SparkSession):
+		Dataset[Edge[Double]] = {
 		import ss.implicits._
 //		val numPartitions = numRepartions match {
 //			case None => graph.edges.getNumPartitions
@@ -36,7 +37,6 @@ class SpanningTree extends Serializable {
 //		}
 
 		val rddLocalTrees = graph
-//			.repartition(numRepartions.getOrElse(graph.rdd.getNumPartitions))
 			.sortWithinPartitions(col("attr"))
 			.mapPartitions[Edge[Double]]((edges: Iterator[Edge[Double]]) => localKruskal(edges, 0))
 		//TODO add step to merge local MSTs with reduceByKey
@@ -63,7 +63,7 @@ class SpanningTree extends Serializable {
 //			.map(_._2)
 //  		.reduce((leftSet, rightSet) => leftSet.merge(rightSet))
 //		val edgesMST = graph.edges.filter(edge => reducedTree.areConnected(edge.srcId, edge.dstId))
-		edgesMST.rdd
+		edgesMST//.rdd
 	}
 
 
